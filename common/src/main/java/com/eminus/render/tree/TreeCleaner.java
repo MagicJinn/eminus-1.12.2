@@ -81,8 +81,7 @@ final class TreeCleaner {
         float size = ProjectedSize.of(box.set(frame, parent.key(), camera), camera.pixelsPerBlock());
         double reach = TreeHorizon.key(box.horizontalDistance(), parent.level());
         Candidate candidate = new Candidate(parent, lastSeen, size, reach);
-        if (size > camera.subdivisionPixels() * TreeTraversal.PREFETCH_SHARE && box.horizontalDistance() <= farBlocks
-                && horizon.refines(reach)) {
+        if (ChildDemand.wants(box, size, camera.subdivisionPixels(), farBlocks, horizon)) {
             far.add(candidate);
         } else {
             unwanted.add(candidate);

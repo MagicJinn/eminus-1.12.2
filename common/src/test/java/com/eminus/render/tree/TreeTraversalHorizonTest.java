@@ -29,7 +29,7 @@ class TreeTraversalHorizonTest {
     private static final double BETWEEN_THE_ROOTS = 5.0;
     private static final double NOTHING_REFINES = 0.0;
     private static final double BUILT_AHEAD_DISTANCE = 1_000.0;
-    private static final double BAND_MIDDLE = (1.0 + TreeTraversal.PREFETCH_SHARE) / 2.0;
+    private static final double BAND_MIDDLE = (1.0 + ChildDemand.PREFETCH_SHARE) / 2.0;
     private static final float BUILT_AHEAD_PIXELS_PER_BLOCK =
             (float) (BAND_MIDDLE * FakeCameras.THRESHOLD_PIXELS * BUILT_AHEAD_DISTANCE / CELL);
 

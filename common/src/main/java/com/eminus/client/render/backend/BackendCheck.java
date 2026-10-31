@@ -58,7 +58,11 @@ public final class BackendCheck {
         Capabilities capabilities = gpu.capabilities();
         DepthConvention depth = DepthConvention.of(capabilities.depthZeroToOne(), capabilities.depthReversed());
 
-        if (arenaBytes <= 0 || arenaBytes > capabilities.maxAllocationBytes()) {
+        if (arenaBytes <= 0) {
+            return refuse(BackendLimitation.ARENA_MINIMUM, depth);
+        }
+
+        if (arenaBytes > capabilities.maxAllocationBytes()) {
             return refuse(BackendLimitation.ARENA_MEMORY, depth);
         }
 
