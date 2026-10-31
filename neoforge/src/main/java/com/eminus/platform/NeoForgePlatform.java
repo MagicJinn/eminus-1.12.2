@@ -39,4 +39,9 @@ public final class NeoForgePlatform implements Platform {
     public Path configDir() {
         return FMLPaths.CONFIGDIR.get();
     }
+
+    @Override
+    public boolean enhancedBlockLighting() {
+        return false;
+    }
 }

@@ -1348,7 +1348,7 @@ class CellMesherTest {
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
         return new CellMesher(scratch, models)
-                .mesh(key, center.occupancy(), opacity, true, () -> bakeRequests++);
+                .mesh(key, center.occupancy(), opacity, CornerRule.VANILLA, () -> bakeRequests++);
     }
 
     private static ColumnCoverage coverage(long... chunks) {
@@ -1369,7 +1369,7 @@ class CellMesherTest {
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
         return new CellMesher(scratch, models)
-                .mesh(key, center.occupancy(), opacity, true, () -> bakeRequests++);
+                .mesh(key, center.occupancy(), opacity, CornerRule.VANILLA, () -> bakeRequests++);
     }
 
     private static Cell blank() {
