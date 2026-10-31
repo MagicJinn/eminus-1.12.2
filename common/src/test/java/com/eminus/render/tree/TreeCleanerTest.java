@@ -35,7 +35,7 @@ class TreeCleanerTest {
     private static final double REACH_TOLERANCE = 0.001;
     private static final double LOW_HORIZON = 100.0;
     private static final double BUILT_AHEAD_DISTANCE = FIRST_FAR_CELL * CELL - INSIDE;
-    private static final double BAND_MIDDLE = (1.0 + TreeTraversal.PREFETCH_SHARE) / 2.0;
+    private static final double BAND_MIDDLE = (1.0 + ChildDemand.PREFETCH_SHARE) / 2.0;
     private static final float BUILT_AHEAD_PIXELS_PER_BLOCK =
             (float) (BAND_MIDDLE * FakeCameras.THRESHOLD_PIXELS * BUILT_AHEAD_DISTANCE / CELL);
 
