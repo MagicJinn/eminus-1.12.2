@@ -19,8 +19,6 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 final class TreeTraversal {
-    static final float PREFETCH_SHARE = 0.8F;
-
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
     private static final Comparator<Candidate> CENTER_FIRST =
@@ -262,7 +260,7 @@ final class TreeTraversal {
                 descend(node);
                 return;
             }
-        } else if (prefetches(node, size, camera)) {
+        } else if (prefetches(node, size, camera, farBlocks)) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
                 candidates.add(new Candidate(node, size, angle));
             }
@@ -274,9 +272,9 @@ final class TreeTraversal {
         draw(node);
     }
 
-    private boolean prefetches(TreeNode node, float size, CameraFrame camera) {
-        return node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() * PREFETCH_SHARE
-                && withinHorizon(node);
+    private boolean prefetches(TreeNode node, float size, CameraFrame camera, double farBlocks) {
+        return node.level() > extent.lowestLevel()
+                && ChildDemand.wants(box, size, camera.subdivisionPixels(), farBlocks, horizon);
     }
 
     private boolean givesWay(TreeNode node, CameraFrame camera) {
@@ -286,7 +284,8 @@ final class TreeTraversal {
     }
 
     private boolean refines(TreeNode node, float size, CameraFrame camera) {
-        return node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() && withinHorizon(node);
+        return node.level() > extent.lowestLevel() && size > camera.subdivisionPixels()
+                && ChildDemand.withinHorizon(box, horizon);
     }
 
     private void listOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
@@ -360,7 +359,8 @@ final class TreeTraversal {
         }
 
         float size = ProjectedSize.of(box, camera.pixelsPerBlock());
-        if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels() || !withinHorizon(node)) {
+        if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels()
+                || !ChildDemand.withinHorizon(box, horizon)) {
             return;
         }
 
@@ -374,11 +374,6 @@ final class TreeTraversal {
                 next.add(child);
             }
         }
-    }
-
-    // Reads the box the caller has just set for this node.
-    private boolean withinHorizon(TreeNode node) {
-        return horizon.refines(TreeHorizon.key(box.horizontalDistance(), node.level()));
     }
 
     private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes, CameraFrame camera,
