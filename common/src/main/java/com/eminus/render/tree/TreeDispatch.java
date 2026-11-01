@@ -63,7 +63,7 @@ final class TreeDispatch {
         long request = ++requests;
         node.clearPending();
         node.startBuild(request, outOfView, counted);
-        builds.build(node.key(), handle, references, request, priority);
+        builds.build(node.key(), handle, references, request, priority, node.mesh() == null);
     }
 
     void settle(TreeNode node) {
