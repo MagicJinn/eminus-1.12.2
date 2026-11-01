@@ -11,6 +11,7 @@ public final class MeshQueue {
     private static final double LONGEST_DELAY_NANOS = 1.0e15;
     private static final int RETRY_DELAYS = 2;
     private static final Comparator<Waiting> ORDER = Comparator.comparing((Waiting waiting) -> !waiting.inView())
+            .thenComparing(waiting -> !waiting.task().fills())
             .thenComparingLong(Waiting::deadline)
             .thenComparingLong(Waiting::arrival);
 
