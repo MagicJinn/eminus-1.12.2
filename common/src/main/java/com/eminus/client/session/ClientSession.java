@@ -145,8 +145,9 @@ public final class ClientSession {
     }
 
     public static void drawFarLayer() {
-        if (renderer != null && !overShaderPack) {
-            renderer.frame(Minecraft.getInstance());
+        FarRenderer drawn = ownTargetRenderer();
+        if (drawn != null) {
+            drawn.frame(Minecraft.getInstance());
         }
     }
 
@@ -174,8 +175,12 @@ public final class ClientSession {
         }
     }
 
-    public static boolean drawsOverShaderPack() {
-        return overShaderPack;
+    public static boolean drawsInOwnTarget() {
+        return ownTargetRenderer() != null;
+    }
+
+    private static @Nullable FarRenderer ownTargetRenderer() {
+        return overShaderPack ? null : renderer;
     }
 
     public static void overrideNearField() {
