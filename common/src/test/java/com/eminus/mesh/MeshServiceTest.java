@@ -186,7 +186,7 @@ class MeshServiceTest {
                     }
                 }, URGENT_WEIGHT);
 
-        harness.run(() -> failing.build(MeshTask.carrying(KEY, null, 0, FAILED_REQUEST, MeshTask.LOWEST_PRIORITY),
+        harness.run(() -> failing.build(MeshTask.carrying(KEY, null, 0, FAILED_REQUEST, MeshTask.LOWEST_PRIORITY, true),
                 new MeshScratch()));
 
         assertNull(delivered.get());
@@ -203,7 +203,7 @@ class MeshServiceTest {
 
         harness.run(() -> {
             CellHandle handle = cache.open(KEY);
-            service.build(MeshTask.carrying(KEY, handle, 1, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY), new MeshScratch());
+            service.build(MeshTask.carrying(KEY, handle, 1, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY, true), new MeshScratch());
         });
 
         assertNotNull(delivered.get());
@@ -221,7 +221,7 @@ class MeshServiceTest {
             CellHandle handle = cache.open(KEY);
             cache.open(KEY);
             cache.open(KEY);
-            service.build(MeshTask.carrying(KEY, handle, 3, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY), new MeshScratch());
+            service.build(MeshTask.carrying(KEY, handle, 3, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY, true), new MeshScratch());
         });
 
         assertEquals(0, cache.liveCount());
