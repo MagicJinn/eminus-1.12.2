@@ -596,6 +596,22 @@ class CellMesherTest {
     }
 
     @Test
+    void aFluidSideAgainstABlockItsOverlayDrawsOnIsOneSided() {
+        defineSea();
+        models.overlayAgainst(SEA, GLASS);
+        Cell cell = blank();
+        cell.set(5, SEA_TOP_Y, 5, block(SEA));
+        cell.set(6, SEA_TOP_Y, 5, block(GLASS));
+        cell.set(4, SEA_TOP_Y, 5, block(TINT_A));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 5, SEA_TOP_Y, 5, models.oneSidedModelId(SEA_MODEL)));
+        assertFalse(has(mesh, Direction.EAST, 5, SEA_TOP_Y, 5, SEA_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 5, SEA_TOP_Y, 5, SEA_MODEL));
+    }
+
+    @Test
     void aSeaOnTheCutFacesBackIntoItselfWithTheLookAndLightOfItsSeabed() {
         defineSea();
         Cell cell = blank();

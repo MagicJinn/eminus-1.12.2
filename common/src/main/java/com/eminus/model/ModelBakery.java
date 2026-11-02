@@ -50,6 +50,7 @@ public final class ModelBakery implements ModelSource {
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
     private final Set<BlockState> positionalStates = ConcurrentHashMap.newKeySet();
+    private final Set<BlockState> overlaidFluidStates = ConcurrentHashMap.newKeySet();
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
     private final IdTable submergedIds = new IdTable(0, MISSING);
     private final IdTable opaqueIds = new IdTable(0, MISSING);
@@ -91,6 +92,10 @@ public final class ModelBakery implements ModelSource {
 
     public boolean positional(BlockState state) {
         return positionalStates.contains(state);
+    }
+
+    public boolean fluidOverlaid(BlockState state) {
+        return overlaidFluidStates.contains(state);
     }
 
     public int submergedModelId(int modelId) {
@@ -272,6 +277,10 @@ public final class ModelBakery implements ModelSource {
 
         if (baked.positional()) {
             positionalStates.add(state);
+        }
+
+        if (baker.fluidOverlaid(state)) {
+            overlaidFluidStates.add(state);
         }
 
         fluidIdByState.put(state, fluidId);

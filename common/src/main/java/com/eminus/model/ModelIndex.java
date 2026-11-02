@@ -60,6 +60,10 @@ public final class ModelIndex {
         return bakery.inwardModelId(seabedModelId, fluidModelId);
     }
 
+    public boolean fluidOverlaid(int stateId) {
+        return bakery.fluidOverlaid(states.state(stateId));
+    }
+
     public BlockState state(int stateId) {
         return states.state(stateId);
     }

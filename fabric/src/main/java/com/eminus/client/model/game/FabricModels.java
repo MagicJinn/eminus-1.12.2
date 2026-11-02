@@ -16,6 +16,7 @@ import net.minecraft.world.level.material.Fluids;
 
 public final class FabricModels implements LoaderModels {
     private static final int STILL_SPRITE = 0;
+    private static final int OVERLAY_SPRITE = 2;
 
     @Override
     public void quads(BlockState state, BakedModel model, RandomSource random, List<? super LayeredQuad> into) {
@@ -25,6 +26,12 @@ public final class FabricModels implements LoaderModels {
     @Override
     public TextureAtlasSprite stillSprite(FluidState fluid) {
         return handler(fluid).getFluidSprites(null, null, fluid)[STILL_SPRITE];
+    }
+
+    @Override
+    public boolean hasOverlay(FluidState fluid) {
+        TextureAtlasSprite[] sprites = handler(fluid).getFluidSprites(null, null, fluid);
+        return sprites.length > OVERLAY_SPRITE && sprites[OVERLAY_SPRITE] != null;
     }
 
     @Override

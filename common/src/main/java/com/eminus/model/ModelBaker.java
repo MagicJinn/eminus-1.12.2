@@ -179,6 +179,12 @@ public final class ModelBaker implements StateBaker {
                 opaque || blockModels.forceOpaque(shape));
     }
 
+    @Override
+    public boolean fluidOverlaid(BlockState state) {
+        FluidState fluid = state.getFluidState();
+        return !fluid.isEmpty() && fluids.overlaid(fluid);
+    }
+
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
         return emissive(fluids.bake(fluid, colors.resolve(fluids.tintSource(fluid), state)), state);
     }

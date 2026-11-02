@@ -33,6 +33,11 @@ public final class NeoForgeModels implements LoaderModels {
     }
 
     @Override
+    public boolean hasOverlay(FluidState fluid) {
+        return IClientFluidTypeExtensions.of(fluid).getOverlayTexture() != null;
+    }
+
+    @Override
     public int fluidTint(FluidState fluid, BlockAndTintGetter level, BlockPos pos) {
         return IClientFluidTypeExtensions.of(fluid).getTintColor(fluid, level, pos);
     }

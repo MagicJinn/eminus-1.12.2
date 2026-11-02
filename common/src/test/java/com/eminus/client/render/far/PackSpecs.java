@@ -33,19 +33,23 @@ public final class PackSpecs {
         for (FarDraw.PackVertex vertex : FarDraw.PackVertex.values()) {
             for (boolean animated : new boolean[] {false, true}) {
                 String suffix = "_" + vertex.name().toLowerCase(Locale.ROOT) + (animated ? "_animated" : "_still");
-                for (boolean translucent : new boolean[] {false, true}) {
-                    String kind = translucent ? "translucent" : "opaque";
-                    AlphaCut cut = AlphaCut.atLeast(translucent ? TranslucentPass.ALPHA_CUTOUT
-                            : OpaquePass.ALPHA_CUTOUT);
-                    for (boolean separateAo : new boolean[] {false, true}) {
-                        specs.add(draw.packPipeline(location(kind + (separateAo ? "_separate_ao" : "") + suffix),
-                                translucent, vertex, animated, separateAo, cut, false));
+                AlphaCut opaqueCut = AlphaCut.atLeast(OpaquePass.ALPHA_CUTOUT);
+                AlphaCut translucentCut = AlphaCut.atLeast(TranslucentPass.ALPHA_CUTOUT);
+                for (boolean separateAo : new boolean[] {false, true}) {
+                    String ao = separateAo ? "_separate_ao" : "";
+                    specs.add(draw.packOpaquePipeline(location("opaque" + ao + suffix), vertex, animated,
+                            separateAo, opaqueCut, false));
+                    for (FarDraw.TranslucentStep step : FarDraw.TranslucentStep.values()) {
+                        specs.add(draw.packTranslucentPipeline(location("translucent_"
+                                + step.name().toLowerCase(Locale.ROOT) + ao + suffix), step, vertex, animated,
+                                separateAo, translucentCut));
                     }
-                    specs.add(draw.shadowPipeline(location("shadow_" + kind + suffix), translucent, vertex,
-                            animated, cut, false));
                 }
-                specs.add(draw.packDepthPipeline(location("depth" + suffix), vertex, animated,
-                        AlphaCut.atLeast(TranslucentPass.ALPHA_CUTOUT)));
+                for (boolean translucent : new boolean[] {false, true}) {
+                    specs.add(draw.shadowPipeline(location("shadow_" + (translucent ? "translucent" : "opaque")
+                            + suffix), translucent, vertex, animated, translucent ? translucentCut : opaqueCut,
+                            false));
+                }
                 for (boolean glow : new boolean[] {false, true}) {
                     specs.add(draw.packBeamPipeline(location((glow ? "beam_glow" : "beam") + suffix), glow, vertex,
                             animated));

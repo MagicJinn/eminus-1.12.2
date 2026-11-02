@@ -45,6 +45,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
     private final Set<List<Integer>> skipped = new HashSet<>();
+    private final Set<List<Integer>> overlaid = new HashSet<>();
 
     private int requests;
     private int nextDerived = FIRST_DERIVED_MODEL;
@@ -102,6 +103,10 @@ final class FakeModels implements MeshModels {
     void skipBetween(int stateId, int facingStateId) {
         skipped.add(List.of(stateId, facingStateId));
         skipped.add(List.of(facingStateId, stateId));
+    }
+
+    void overlayAgainst(int stateId, int facingStateId) {
+        overlaid.add(List.of(stateId, facingStateId));
     }
 
     void shadeAs(int stateId, int shade) {
@@ -242,6 +247,11 @@ final class FakeModels implements MeshModels {
     @Override
     public boolean skipsFace(int stateId, int facingStateId, Direction face) {
         return skipped.contains(List.of(stateId, facingStateId));
+    }
+
+    @Override
+    public boolean overlaysFluid(int stateId, int facingStateId) {
+        return overlaid.contains(List.of(stateId, facingStateId));
     }
 
     @Override

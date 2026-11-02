@@ -15,5 +15,7 @@ public interface LoaderModels {
 
     TextureAtlasSprite stillSprite(FluidState fluid);
 
+    boolean hasOverlay(FluidState fluid);
+
     int fluidTint(FluidState fluid, BlockAndTintGetter level, BlockPos pos);
 }

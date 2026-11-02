@@ -2,6 +2,7 @@ package com.eminus.client.render.far;
 
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.function.Consumer;
 
 import com.eminus.Eminus;
 import com.eminus.client.model.ModelPublisher;
@@ -14,6 +15,7 @@ import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pass.PassSpec;
 import com.eminus.gpu.pipeline.Blend;
+import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Sampler;
@@ -21,36 +23,63 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
-import org.jspecify.annotations.Nullable;
-
 public final class TranslucentPass {
     public static final float ALPHA_CUTOUT = 0.1F;
 
-    private static final Location PIPELINE = new Location(Eminus.MODID, "far_translucent");
+    private static final Location FRONT_DEPTH_PIPELINE = new Location(Eminus.MODID, "far_translucent_front_depth");
+    private static final Location BEHIND_PIPELINE = new Location(Eminus.MODID, "far_translucent_behind");
+    private static final Location FRONT_PIPELINE = new Location(Eminus.MODID, "far_translucent");
     private static final Location DEPTH_PIPELINE = new Location(Eminus.MODID, "far_translucent_depth");
-    private static final String PASS_LABEL = "eminus-far-translucent";
+    private static final String FRONT_DEPTH_PASS_LABEL = "eminus-far-translucent-front-depth";
+    private static final String BEHIND_PASS_LABEL = "eminus-far-translucent-behind";
+    private static final String FRONT_PASS_LABEL = "eminus-far-translucent";
     private static final String DEPTH_PASS_LABEL = "eminus-far-translucent-depth";
 
-    private final Gpu gpu;
-    private final Pipeline color;
-    private final Pipeline depth;
+    private record Draw(GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas, Buffer commands,
+            int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
+    }
 
-    private TranslucentPass(Gpu gpu, Pipeline color, Pipeline depth) {
+    private final Gpu gpu;
+    private final DepthConvention depth;
+    private final Pipeline frontDepth;
+    private final Pipeline behind;
+    private final Pipeline front;
+    private final Pipeline finalDepth;
+
+    private TranslucentPass(Gpu gpu, DepthConvention depth, Pipeline frontDepth, Pipeline behind, Pipeline front,
+            Pipeline finalDepth) {
         this.gpu = gpu;
-        this.color = color;
         this.depth = depth;
+        this.frontDepth = frontDepth;
+        this.behind = behind;
+        this.front = front;
+        this.finalDepth = finalDepth;
     }
 
     public static TranslucentPass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
         gpu.assertRenderThread();
         Capabilities capabilities = gpu.capabilities();
-        return new TranslucentPass(gpu,
-                gpu.pipeline(pipeline(PIPELINE, Blend.TRANSLUCENT, true, false, depth, capabilities, variantDraw)),
-                gpu.pipeline(pipeline(DEPTH_PIPELINE, null, false, true, depth, capabilities, variantDraw)));
+        return new TranslucentPass(gpu, depth,
+                gpu.pipeline(FarQuads.inFrontOfOpaque(pipeline(FRONT_DEPTH_PIPELINE, depth, capabilities, variantDraw))
+                        .withColorTarget(FarTarget.COLOR_FORMAT, null, false)
+                        .withDepthTest(depth.compare(), true)
+                        .build()),
+                gpu.pipeline(FarQuads.behindFront(pipeline(BEHIND_PIPELINE, depth, capabilities, variantDraw))
+                        .withColorTarget(FarTarget.COLOR_FORMAT, Blend.TRANSLUCENT, true)
+                        .withDepthTest(depth.compare(), false)
+                        .build()),
+                gpu.pipeline(pipeline(FRONT_PIPELINE, depth, capabilities, variantDraw)
+                        .withColorTarget(FarTarget.COLOR_FORMAT, Blend.TRANSLUCENT, true)
+                        .withDepthTest(DepthCompare.EQUAL, false)
+                        .build()),
+                gpu.pipeline(pipeline(DEPTH_PIPELINE, depth, capabilities, variantDraw)
+                        .withColorTarget(FarTarget.COLOR_FORMAT, null, false)
+                        .withDepthTest(depth.compare(), true)
+                        .build()));
     }
 
     public List<Pipeline> pipelines() {
-        return List.of(color, depth);
+        return List.of(frontDepth, behind, front, finalDepth);
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
@@ -60,29 +89,29 @@ public final class TranslucentPass {
             return;
         }
 
-        draw(PASS_LABEL, color, target, arena, models, lightmap, atlas, commands, firstCommand, drawCount, frame,
-                nearSections);
-        draw(DEPTH_PASS_LABEL, depth, target, arena, models, lightmap, atlas, commands, firstCommand, drawCount,
-                frame, nearSections);
+        Draw draw = new Draw(arena, models, lightmap, atlas, commands, firstCommand, drawCount, frame, nearSections);
+        draw(FRONT_DEPTH_PASS_LABEL, frontDepth, target, target.frontDepth(), OptionalDouble.of(depth.farthest()),
+                draw, pass -> FarQuads.bindOpaqueDepth(pass, target.depth()));
+        draw(BEHIND_PASS_LABEL, behind, target, target.depth(), OptionalDouble.empty(), draw,
+                pass -> FarQuads.bindFrontDepth(pass, target.frontDepth()));
+        draw(FRONT_PASS_LABEL, front, target, target.frontDepth(), OptionalDouble.empty(), draw, pass -> { });
+        draw(DEPTH_PASS_LABEL, finalDepth, target, target.depth(), OptionalDouble.empty(), draw, pass -> { });
     }
 
-    private void draw(String label, Pipeline pipeline, FarTarget target, GeometryArena arena, ModelPublisher models,
-            Texture lightmap, Sampler atlas, Buffer commands, int firstCommand, int drawCount, Buffer frame,
-            TexelView nearSections) {
-        try (Pass pass = gpu.pass(PassSpec.of(label, target.color(), null)
-                .withDepth(target.depth(), OptionalDouble.empty()))) {
+    private void draw(String label, Pipeline pipeline, FarTarget target, Texture depthAttachment,
+            OptionalDouble clearDepth, Draw draw, Consumer<Pass> bindDepth) {
+        try (Pass pass = gpu.pass(PassSpec.of(label, target.color(), null).withDepth(depthAttachment, clearDepth))) {
             pass.pipeline(pipeline);
-            FarQuads.bind(pass, arena, models, lightmap, atlas, frame, nearSections);
-            pass.drawIndexedIndirect(commands, firstCommand, drawCount);
+            FarQuads.bind(pass, draw.arena(), draw.models(), draw.lightmap(), draw.atlas(), draw.frame(),
+                    draw.nearSections());
+            bindDepth.accept(pass);
+            pass.drawIndexedIndirect(draw.commands(), draw.firstCommand(), draw.drawCount());
         }
     }
 
-    private static PipelineSpec pipeline(Location location, @Nullable Blend blend, boolean writesColor,
-            boolean writesDepth, DepthConvention depth, Capabilities capabilities, VariantDraw variantDraw) {
-        return FarQuads.pipeline(location, ALPHA_CUTOUT, capabilities, variantDraw)
-                .withDefine("NEAR_SECTIONS")
-                .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
-                .withDepthTest(depth.compare(), writesDepth)
-                .build();
+    private static PipelineSpec.Builder pipeline(Location location, DepthConvention depth, Capabilities capabilities,
+            VariantDraw variantDraw) {
+        return depth.define(FarQuads.pipeline(location, ALPHA_CUTOUT, capabilities, variantDraw)
+                .withDefine("NEAR_SECTIONS"));
     }
 }
