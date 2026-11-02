@@ -1,6 +1,7 @@
 package com.eminus.ingest;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.VoxelEntry;
 
@@ -12,24 +13,76 @@ public final class PyramidDownsampler {
     private static final long SUM_MASK = 0xFFFFL;
     private static final long NO_COVER = VoxelEntry.AIR;
 
-    public static void build(SectionPyramid pyramid, StateOpacity opacity) {
+    public static void build(SectionPyramid pyramid, StateOpacity opacity, StateLayers layers) {
         for (int level = DetailLevel.MIN + 1; level <= DetailLevel.MAX; level++) {
             reduce(pyramid.level(level - 1), pyramid.level(level), SectionPyramid.sideOf(level),
-                    DetailLevel.blocksPerVoxel(level - 1), opacity);
+                    DetailLevel.blocksPerVoxel(level - 1), opacity, layers);
         }
     }
 
-    private static void reduce(long[] source, long[] target, int targetSide, int sourceBlocks, StateOpacity opacity) {
+    private static void reduce(long[] source, long[] target, int targetSide, int sourceBlocks, StateOpacity opacity,
+            StateLayers layers) {
         int sourceSide = targetSide * 2;
 
         for (int y = 0; y < targetSide; y++) {
             for (int z = 0; z < targetSide; z++) {
                 for (int x = 0; x < targetSide; x++) {
-                    target[SectionPyramid.indexAt(targetSide, x, y, z)] =
-                            combine(source, sourceSide, sourceBlocks, x * 2, y * 2, z * 2, opacity);
+                    long entry = combine(source, sourceSide, sourceBlocks, x * 2, y * 2, z * 2, opacity);
+                    target[SectionPyramid.indexAt(targetSide, x, y, z)] = VoxelEntry.isAir(entry) ? entry
+                            : layered(entry, source, sourceSide, sourceBlocks, x * 2, y * 2, z * 2, opacity, layers);
                 }
             }
         }
+    }
+
+    private static long layered(long entry, long[] source, int side, int sourceBlocks, int originX, int originY,
+            int originZ, StateOpacity opacity, StateLayers layers) {
+        int block = layers.layerBlock(VoxelEntry.state(entry));
+        if (layers.holdsFluid(block)) {
+            return entry;
+        }
+
+        int fluid = NONE_FOUND;
+        int fluidTop = 0;
+        int fluidBottom = 2 * sourceBlocks;
+        int solidBottom = 2 * sourceBlocks;
+
+        for (int dy = 1; dy >= 0; dy--) {
+            for (int dz = 1; dz >= 0; dz--) {
+                for (int dx = 1; dx >= 0; dx--) {
+                    long child = source[SectionPyramid.indexAt(side, originX + dx, originY + dy, originZ + dz)];
+                    if (VoxelEntry.isAir(child)) {
+                        continue;
+                    }
+
+                    int state = VoxelEntry.state(child);
+                    int from = spanStart(child, dy, sourceBlocks);
+                    int to = spanEnd(child, dy, sourceBlocks);
+                    int height = layers.layerBlocks(state);
+                    boolean layer = height != StateLayers.NOT_LAYERED;
+                    int fluidTo = layer ? to - height : layers.holdsFluid(state) ? to : from;
+                    if (fluidTo > from) {
+                        fluidBottom = Math.min(fluidBottom, from);
+                        if (fluidTo > fluidTop) {
+                            fluidTop = fluidTo;
+                            fluid = layers.layerFluid(state);
+                        }
+                    }
+
+                    if (fluidTo < to && (layer || opacity.opacity(state) > CLEAR
+                            || opacity.coversGround(child, sourceBlocks))) {
+                        solidBottom = Math.min(solidBottom, fluidTo);
+                    }
+                }
+            }
+        }
+
+        int top = 2 * sourceBlocks - VoxelEntry.highGap(entry);
+        if (fluid == NONE_FOUND || fluidBottom >= solidBottom || top <= solidBottom) {
+            return entry;
+        }
+
+        return VoxelEntry.withState(entry, layers.layered(block, fluid, top - solidBottom));
     }
 
     private static long combine(long[] source, int side, int sourceBlocks, int originX, int originY, int originZ,

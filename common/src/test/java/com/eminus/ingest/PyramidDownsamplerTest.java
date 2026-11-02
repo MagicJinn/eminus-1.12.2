@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.FakeLayers;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.VoxelEntry;
 
@@ -18,33 +19,36 @@ class PyramidDownsamplerTest {
     private static final int LEAVES = 4;
     private static final int WATER = 5;
     private static final int SNOW = 6;
+    private static final int ICE = 7;
 
-    private static final int[] OPACITY = {0, 0, 15, 15, 15, 1, 0};
-    private static final StateOpacity OPACITIES = new StateOpacity() {
-        @Override
-        public int opacity(int stateId) {
-            return OPACITY[stateId];
-        }
-
-        @Override
-        public boolean cover(int stateId) {
-            return stateId == SNOW;
-        }
-    };
+    private static final int[] OPACITY = {0, 0, 15, 15, 15, 1, 0, 1};
 
     private static final int BIOME = 7;
     private static final int TOP_BIOME = 9;
     private static final int HALF_SECTION = SectionPyramid.SECTION_SIDE / 2;
     private static final int SNOW_Y = 3;
+    private static final int SEA_Y = 14;
 
     private final SectionPyramid pyramid = new SectionPyramid();
+    private final FakeLayers layers = new FakeLayers(state -> state == WATER);
+    private final StateOpacity opacities = new StateOpacity() {
+        @Override
+        public int opacity(int stateId) {
+            return OPACITY[layers.layerBlock(stateId)];
+        }
+
+        @Override
+        public boolean cover(int stateId) {
+            return layers.layerBlock(stateId) == SNOW;
+        }
+    };
 
     @Test
     void theHighestOpacityWinsTheGroup() {
         fill(entry(FLOWER));
         set(0, 0, 0, entry(STONE));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         assertEquals(STONE, VoxelEntry.state(at(DetailLevel.MIN + 1, 0, 0, 0)));
     }
@@ -55,7 +59,7 @@ class PyramidDownsamplerTest {
         set(0, 0, 0, entry(TRUNK));
         set(1, 1, 1, entry(LEAVES));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         assertEquals(LEAVES, VoxelEntry.state(at(DetailLevel.MIN + 1, 0, 0, 0)));
     }
@@ -65,7 +69,7 @@ class PyramidDownsamplerTest {
         fill(VoxelEntry.pack(VoxelEntry.AIR_STATE_ID, BIOME, VoxelEntry.light(4, 2)));
         set(1, 1, 1, VoxelEntry.pack(VoxelEntry.AIR_STATE_ID, TOP_BIOME, VoxelEntry.light(12, 10)));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long merged = at(DetailLevel.MIN + 1, 0, 0, 0);
         assertTrue(VoxelEntry.isAir(merged));
@@ -87,7 +91,7 @@ class PyramidDownsamplerTest {
             set(corner, y, corner, entry(LEAVES));
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         assertEquals(LEAVES, VoxelEntry.state(at(DetailLevel.MAX, 0, 0, 0)));
     }
@@ -99,7 +103,7 @@ class PyramidDownsamplerTest {
             set(0, y, 0, entry(STONE));
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long coarsest = at(DetailLevel.MAX, 0, 0, 0);
         assertEquals(0, VoxelEntry.lowGap(coarsest));
@@ -112,7 +116,7 @@ class PyramidDownsamplerTest {
         fill(VoxelEntry.AIR);
         set(3, 5, 3, entry(STONE));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long coarsest = at(DetailLevel.MAX, 0, 0, 0);
         assertEquals(5, VoxelEntry.lowGap(coarsest));
@@ -129,7 +133,7 @@ class PyramidDownsamplerTest {
             }
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long coarsest = at(DetailLevel.MAX, 0, 0, 0);
         assertEquals(STONE, VoxelEntry.state(coarsest));
@@ -148,7 +152,7 @@ class PyramidDownsamplerTest {
             }
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long coarsest = at(DetailLevel.MAX, 0, 0, 0);
         assertEquals(STONE, VoxelEntry.state(coarsest));
@@ -161,7 +165,7 @@ class PyramidDownsamplerTest {
         fill(VoxelEntry.AIR);
         set(2, 7, 2, entry(FLOWER));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long coarsest = at(DetailLevel.MAX, 0, 0, 0);
         assertEquals(FLOWER, VoxelEntry.state(coarsest));
@@ -181,7 +185,7 @@ class PyramidDownsamplerTest {
             }
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long first = at(DetailLevel.MIN + 1, 0, 1, 0);
         assertEquals(SNOW, VoxelEntry.state(first));
@@ -206,7 +210,7 @@ class PyramidDownsamplerTest {
         }
         set(1, 1, 1, entry(STONE));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         assertEquals(STONE, VoxelEntry.state(at(DetailLevel.MIN + 1, 0, 0, 0)));
     }
@@ -217,12 +221,87 @@ class PyramidDownsamplerTest {
         set(0, 0, 0, entry(FLOWER));
         set(1, 1, 1, entry(SNOW));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         long merged = at(DetailLevel.MIN + 1, 0, 0, 0);
         assertEquals(SNOW, VoxelEntry.state(merged));
         assertEquals(1, VoxelEntry.lowGap(merged));
         assertEquals(0, VoxelEntry.highGap(merged));
+    }
+
+    @Test
+    void iceOverWaterStaysOneBlockOverTheWaterAtEveryCoarseLevel() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                sea(x, z);
+                set(x, SEA_Y, z, entry(ICE));
+            }
+        }
+
+        PyramidDownsampler.build(pyramid, opacities, layers);
+
+        for (int level = DetailLevel.MIN + 2; level <= DetailLevel.MAX; level++) {
+            long coarse = at(level, 0, SectionPyramid.sideOf(level) - 1, 0);
+            assertLayered(coarse, ICE, 1);
+            assertEquals(0, VoxelEntry.lowGap(coarse));
+            assertEquals(1, VoxelEntry.highGap(coarse));
+        }
+    }
+
+    @Test
+    void iceAtTheEdgeOfItsFieldLayersOverTheOpenWaterBesideIt() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                sea(x, z);
+                set(x, SEA_Y, z, entry(WATER));
+            }
+        }
+        set(3, SEA_Y, 3, entry(ICE));
+
+        PyramidDownsampler.build(pyramid, opacities, layers);
+
+        assertLayered(at(DetailLevel.MIN + 2, 0, SectionPyramid.sideOf(DetailLevel.MIN + 2) - 1, 0), ICE, 1);
+    }
+
+    @Test
+    void snowOnIceOverWaterStandsOnTheIceOverTheWater() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                for (int y = 0; y < SEA_Y - 1; y++) {
+                    set(x, y, z, entry(WATER));
+                }
+                set(x, SEA_Y - 1, z, entry(ICE));
+                set(x, SEA_Y, z, entry(SNOW));
+            }
+        }
+
+        PyramidDownsampler.build(pyramid, opacities, layers);
+
+        for (int level = DetailLevel.MIN + 2; level <= DetailLevel.MAX; level++) {
+            long coarse = at(level, 0, SectionPyramid.sideOf(level) - 1, 0);
+            assertLayered(coarse, SNOW, 2);
+            assertEquals(1, VoxelEntry.highGap(coarse));
+        }
+    }
+
+    @Test
+    void groundUnderTheWaterLeavesTheVoxelUnlayered() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                set(x, SEA_Y - 2, z, entry(STONE));
+                set(x, SEA_Y - 1, z, entry(WATER));
+                set(x, SEA_Y, z, entry(ICE));
+            }
+        }
+
+        PyramidDownsampler.build(pyramid, opacities, layers);
+
+        long coarse = at(DetailLevel.MIN + 2, 0, SectionPyramid.sideOf(DetailLevel.MIN + 2) - 1, 0);
+        assertEquals(STONE, VoxelEntry.state(coarse));
     }
 
     @Test
@@ -234,7 +313,7 @@ class PyramidDownsamplerTest {
             }
         }
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         for (int level = DetailLevel.MIN + 1; level <= DetailLevel.MAX; level++) {
             long ground = at(level, 0, 0, 0);
@@ -248,7 +327,7 @@ class PyramidDownsamplerTest {
     void aFullVoxelKeepsItsWinnersLight() {
         fill(VoxelEntry.pack(STONE, BIOME, VoxelEntry.light(0, 0)));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         assertEquals(0, VoxelEntry.skyLight(at(DetailLevel.MAX, 0, 0, 0)));
     }
@@ -257,10 +336,23 @@ class PyramidDownsamplerTest {
     void aFullSectionLeavesEveryLevelWithoutGaps() {
         fill(entry(STONE));
 
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, opacities, layers);
 
         for (int level = DetailLevel.MIN + 1; level <= DetailLevel.MAX; level++) {
             assertEquals(VoxelEntry.NO_GAPS, VoxelEntry.gaps(at(level, 0, 0, 0)));
+        }
+    }
+
+    private void assertLayered(long entry, int block, int blocks) {
+        int state = VoxelEntry.state(entry);
+        assertEquals(blocks, layers.layerBlocks(state));
+        assertEquals(block, layers.layerBlock(state));
+        assertEquals(WATER, layers.layerFluid(state));
+    }
+
+    private void sea(int x, int z) {
+        for (int y = 0; y < SEA_Y; y++) {
+            set(x, y, z, entry(WATER));
         }
     }
 

@@ -103,18 +103,23 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
 
     @Override
     public boolean holdsFluid(int stateId) {
-        return !index.state(stateId).getFluidState().isEmpty();
+        return !index.fluidHolder(stateId).getFluidState().isEmpty();
     }
 
     @Override
     public boolean sameFluid(int stateId, int otherStateId) {
-        FluidState fluid = index.state(stateId).getFluidState();
-        return !fluid.isEmpty() && fluid.getType().isSame(index.state(otherStateId).getFluidState().getType());
+        FluidState fluid = index.fluidHolder(stateId).getFluidState();
+        return !fluid.isEmpty() && fluid.getType().isSame(index.fluidHolder(otherStateId).getFluidState().getType());
     }
 
     @Override
     public float fluidHeight(int stateId) {
-        return index.state(stateId).getFluidState().getOwnHeight();
+        return index.fluidHolder(stateId).getFluidState().getOwnHeight();
+    }
+
+    @Override
+    public int layerBlocks(int stateId) {
+        return index.layerBlocks(stateId);
     }
 
     @Override

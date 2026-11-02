@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.FakeLayers;
+import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellCache;
@@ -35,6 +37,7 @@ class ConcurrentMergeTest {
     private static final int FIRST_STATE_ID = 1;
 
     private static final StateOpacity OPACITIES = state -> FULL_OPACITY;
+    private static final StateLayers LAYERS = new FakeLayers(state -> false);
 
     private final AtomicLong clock = new AtomicLong();
     private final FakeCellStore store = new FakeCellStore();
@@ -73,7 +76,7 @@ class ConcurrentMergeTest {
         try {
             SectionPyramid pyramid = new SectionPyramid();
             fill(pyramid, index);
-            PyramidDownsampler.build(pyramid, OPACITIES);
+            PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
             WorkerHarness.await(start);
             merger.merge(pyramid, sectionX(index), sectionY(index), sectionZ(index));
         } catch (Throwable thrown) {
