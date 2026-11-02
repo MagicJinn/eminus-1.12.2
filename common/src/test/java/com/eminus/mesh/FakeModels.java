@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.eminus.cell.FaceMask;
+import com.eminus.cell.StateLayers;
 import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelMetadata;
 
@@ -46,6 +47,7 @@ final class FakeModels implements MeshModels {
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
     private final Set<List<Integer>> skipped = new HashSet<>();
     private final Set<List<Integer>> overlaid = new HashSet<>();
+    private final Map<Integer, Integer> layers = new HashMap<>();
 
     private int requests;
     private int nextDerived = FIRST_DERIVED_MODEL;
@@ -98,6 +100,10 @@ final class FakeModels implements MeshModels {
     void holds(int stateId, int fluid, float height) {
         fluidKinds.put(stateId, fluid);
         fluidHeights.put(stateId, height);
+    }
+
+    void layer(int stateId, int blocks) {
+        layers.put(stateId, blocks);
     }
 
     void skipBetween(int stateId, int facingStateId) {
@@ -284,6 +290,11 @@ final class FakeModels implements MeshModels {
     @Override
     public float fluidHeight(int stateId) {
         return fluidHeights.getOrDefault(stateId, 0.0F);
+    }
+
+    @Override
+    public int layerBlocks(int stateId) {
+        return layers.getOrDefault(stateId, StateLayers.NOT_LAYERED);
     }
 
     @Override

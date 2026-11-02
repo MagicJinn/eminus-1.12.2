@@ -1,6 +1,7 @@
 package com.eminus.model;
 
 import com.eminus.cell.IdTable;
+import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateTable;
 
 import net.minecraft.world.level.block.state.BlockState;
@@ -61,11 +62,19 @@ public final class ModelIndex {
     }
 
     public boolean fluidOverlaid(int stateId) {
-        return bakery.fluidOverlaid(states.state(stateId));
+        return bakery.fluidOverlaid(fluidHolder(stateId));
     }
 
     public BlockState state(int stateId) {
         return states.state(stateId);
+    }
+
+    public BlockState fluidHolder(int stateId) {
+        return states.state(states.layerFluid(stateId));
+    }
+
+    public int layerBlocks(int stateId) {
+        return states.layerBlocks(stateId);
     }
 
     private boolean resolve(int stateId, Runnable whenBaked) {
@@ -75,7 +84,13 @@ public final class ModelIndex {
             return false;
         }
 
-        fluidIds.put(stateId, bakery.fluidModelId(state));
+        int fluidId = states.layerBlocks(stateId) == StateLayers.NOT_LAYERED ? bakery.fluidModelId(state)
+                : bakery.request(fluidHolder(stateId), whenBaked);
+        if (fluidId == ModelBakery.MISSING) {
+            return false;
+        }
+
+        fluidIds.put(stateId, fluidId);
         modelIds.put(stateId, bakery.positional(state) ? ModelBakery.POSITIONAL : modelId);
         return true;
     }
