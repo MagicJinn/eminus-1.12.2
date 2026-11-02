@@ -47,6 +47,7 @@ final class PackLayer {
     private @Nullable FarRenderer builtFor;
     private @Nullable PackProgram opaque;
     private @Nullable PackProgram translucentFrontDepth;
+    private @Nullable PackProgram translucentSecondDepth;
     private @Nullable PackProgram translucentBehind;
     private @Nullable PackProgram translucent;
     private @Nullable PackProgram translucentDepth;
@@ -193,6 +194,7 @@ final class PackLayer {
             current.builtFor = null;
             current.opaque = null;
             current.translucentFrontDepth = null;
+            current.translucentSecondDepth = null;
             current.translucentBehind = null;
             current.translucent = null;
             current.translucentDepth = null;
@@ -245,16 +247,18 @@ final class PackLayer {
         PackProgram builtOpaque = program(draw, foreign.get(), PackProgram.Kind.OPAQUE, null);
         PackProgram builtFrontDepth = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.FRONT_DEPTH,
                 builtOpaque);
-        PackProgram builtBehind = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.BEHIND,
+        PackProgram builtSecondDepth = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.SECOND_DEPTH,
                 builtFrontDepth);
+        PackProgram builtBehind = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.BEHIND,
+                builtSecondDepth);
         PackProgram builtTranslucent = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.FRONT,
                 builtBehind);
         PackProgram builtDepth = translucentProgram(draw, foreign.get(), FarDraw.TranslucentStep.DEPTH,
                 builtTranslucent);
-        if (builtOpaque == null || builtFrontDepth == null || builtBehind == null || builtTranslucent == null
-                || builtDepth == null) {
-            for (PackProgram program : new PackProgram[] {builtOpaque, builtFrontDepth, builtBehind,
-                    builtTranslucent}) {
+        if (builtOpaque == null || builtFrontDepth == null || builtSecondDepth == null || builtBehind == null
+                || builtTranslucent == null || builtDepth == null) {
+            for (PackProgram program : new PackProgram[] {builtOpaque, builtFrontDepth, builtSecondDepth,
+                    builtBehind, builtTranslucent}) {
                 if (program != null) {
                     program.release();
                 }
@@ -265,6 +269,7 @@ final class PackLayer {
         createFramebuffers(builtOpaque, builtTranslucent);
         opaque = builtOpaque;
         translucentFrontDepth = builtFrontDepth;
+        translucentSecondDepth = builtSecondDepth;
         translucentBehind = builtBehind;
         translucent = builtTranslucent;
         translucentDepth = builtDepth;
@@ -275,6 +280,7 @@ final class PackLayer {
     private void forgetPrograms() {
         opaque = null;
         translucentFrontDepth = null;
+        translucentSecondDepth = null;
         translucentBehind = null;
         translucent = null;
         translucentDepth = null;
@@ -295,8 +301,8 @@ final class PackLayer {
     }
 
     private void release() {
-        for (PackProgram program : new PackProgram[] {opaque, translucentFrontDepth, translucentBehind, translucent,
-                translucentDepth, shadow, shadowTranslucent, beam, beamGlow}) {
+        for (PackProgram program : new PackProgram[] {opaque, translucentFrontDepth, translucentSecondDepth,
+                translucentBehind, translucent, translucentDepth, shadow, shadowTranslucent, beam, beamGlow}) {
             if (program != null) {
                 program.release();
             }
@@ -388,22 +394,32 @@ final class PackLayer {
     private void drawTranslucent() {
         FarDraw draw = drawn;
         drawn = null;
-        if (draw == null || translucentFrontDepth == null || translucentBehind == null || translucent == null
-                || translucentDepth == null || translucentFramebuffer == null) {
+        if (draw == null || translucentFrontDepth == null || translucentSecondDepth == null
+                || translucentBehind == null || translucent == null || translucentDepth == null
+                || translucentFramebuffer == null) {
             return;
         }
 
-        int depth = draw.gpu().foreign().orElseThrow().texture(draw.target().depth());
+        Foreign foreign = draw.gpu().foreign().orElseThrow();
+        FarTarget target = draw.target();
+        int depth = foreign.texture(target.depth());
         if (beamGlow != null && beamGlowFramebuffer != null && draw.beamsDrawn()) {
             beamGlowAttached = attach(beamGlowFramebuffer, beamGlowAttached, depth);
             beamGlow.drawBeams(draw, beamGlowFramebuffer);
         }
-        int frontDepth = draw.gpu().foreign().orElseThrow().texture(draw.target().frontDepth());
+        int frontDepth = foreign.texture(target.frontDepth());
+        int secondDepth = foreign.texture(target.secondDepth());
         draw.clearFrontDepth();
         translucentAttached = attach(translucentFramebuffer, translucentAttached, frontDepth);
         translucentFrontDepth.drawTranslucent(draw, translucentFramebuffer, draw::bindOpaqueDepth);
+        // A second depth sampler would take the pack program past the texture units the game tracks.
+        foreign.copyDepth(target.color(), target.depth(), target.secondDepth());
+        translucentAttached = attach(translucentFramebuffer, translucentAttached, secondDepth);
+        translucentSecondDepth.drawTranslucent(draw, translucentFramebuffer, draw::bindFrontDepth);
         translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
-        translucentBehind.drawTranslucent(draw, translucentFramebuffer, draw::bindFrontDepth);
+        translucentBehind.drawTranslucent(draw, translucentFramebuffer, draw::bindSecondDepth);
+        translucentAttached = attach(translucentFramebuffer, translucentAttached, secondDepth);
+        translucent.drawTranslucent(draw, translucentFramebuffer, pass -> { });
         translucentAttached = attach(translucentFramebuffer, translucentAttached, frontDepth);
         translucent.drawTranslucent(draw, translucentFramebuffer, pass -> { });
         translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);

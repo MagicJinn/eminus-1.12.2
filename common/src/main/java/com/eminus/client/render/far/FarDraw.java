@@ -65,6 +65,7 @@ public final class FarDraw {
 
     public enum TranslucentStep {
         FRONT_DEPTH,
+        SECOND_DEPTH,
         BEHIND,
         FRONT,
         DEPTH;
@@ -141,6 +142,8 @@ public final class FarDraw {
         PipelineSpec.Builder builder = switch (step) {
             case FRONT_DEPTH -> FarQuads.inFrontOfOpaque(
                     pack(location, cut, null, false, depth.compare(), true, vertex, animated));
+            case SECOND_DEPTH -> FarQuads.behindFront(
+                    pack(location, cut, null, false, depth.compare(), true, vertex, animated));
             case BEHIND -> FarQuads.behindFront(
                     pack(location, cut, Blend.TRANSLUCENT, true, depth.compare(), false, vertex, animated));
             case FRONT -> pack(location, cut, Blend.TRANSLUCENT, true, DepthCompare.EQUAL, false, vertex, animated);
@@ -214,6 +217,10 @@ public final class FarDraw {
 
     public void bindFrontDepth(Pass pass) {
         FarQuads.bindFrontDepth(pass, target.frontDepth());
+    }
+
+    public void bindSecondDepth(Pass pass) {
+        FarQuads.bindFrontDepth(pass, target.secondDepth());
     }
 
     public void clearFrontDepth() {
