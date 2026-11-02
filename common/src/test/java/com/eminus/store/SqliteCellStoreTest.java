@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.sqlite.SQLiteDataSource;
 
 @Timeout(60)
@@ -50,11 +51,6 @@ class SqliteCellStoreTest {
     private static final long COLUMN_B = ColumnCoverage.pack(-12, 40);
     private static final int RAISED_LEVEL = 1;
     private static final int COARSER_LEVEL = 2;
-    private static final long SPLIT_CELL = CellKey.pack(DetailLevel.MIN, 1, 0, -1);
-    private static final int EAST_HALF_VOXEL = 20;
-    private static final int NORTH_HALF_VOXEL = 3;
-    private static final long HELD_COLUMN = ColumnCoverage.pack(3, -2);
-    private static final long BARE_COLUMN = ColumnCoverage.pack(2, -2);
     private static final String COUNT_COLUMNS_TABLE =
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'columns'";
     private static final String COUNT_META_TABLE =
@@ -138,6 +134,29 @@ class SqliteCellStoreTest {
         }
 
         assertTrue(blocks.isEmpty());
+        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {StoreFormat.BEFORE_LOWEST, StoreFormat.BEFORE_LAYERS})
+    void aStoreWrittenBeforeLayeredVoxelsIsRebuiltEmptyUnderTheCurrentVersion(int version) throws SQLException {
+        long key = CellKey.pack(1, 2, 3, 4);
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            store.write(Cell.blank(key));
+            store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+        }
+
+        execute("PRAGMA user_version = " + version);
+
+        List<String> blocks = new ArrayList<>();
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            assertNull(store.read(key));
+            store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
+        }
+
+        assertTrue(blocks.isEmpty());
+        assertTrue(columnsAt(LOWEST_LEVEL).isEmpty());
         assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
     }
 
@@ -443,7 +462,7 @@ class SqliteCellStoreTest {
     }
 
     @Test
-    void aFormatFourStoreWithoutTheMetaTableGainsItAtTheNextOpen() throws SQLException {
+    void aStoreWithoutTheMetaTableGainsItAtTheNextOpen() throws SQLException {
         open(LOWEST_LEVEL).close();
         execute("DROP TABLE meta");
 
@@ -451,37 +470,6 @@ class SqliteCellStoreTest {
 
         assertEquals(1, readInt(COUNT_META_TABLE));
         assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
-    }
-
-    @Test
-    void aVersionThreeStoreAtLevelZeroKeepsThereOnlyTheColumnsAFinestCellHolds() throws SQLException {
-        Cell cell = Cell.blank(SPLIT_CELL);
-        cell.set(EAST_HALF_VOXEL, 0, NORTH_HALF_VOXEL, STONE);
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(cell);
-            store.putColumn(HELD_COLUMN, LOWEST_LEVEL);
-            store.putColumn(BARE_COLUMN, LOWEST_LEVEL);
-        }
-
-        givenFormatThree();
-
-        assertEquals(Map.of(HELD_COLUMN, LOWEST_LEVEL, BARE_COLUMN, RAISED_LEVEL), columnsAt(LOWEST_LEVEL));
-        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            assertEquals(STONE, store.read(SPLIT_CELL).get(EAST_HALF_VOXEL, 0, NORTH_HALF_VOXEL));
-        }
-    }
-
-    @Test
-    void aVersionThreeStoreAtACoarserLevelTakesThatLevelForEveryColumn() throws SQLException {
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.putColumn(COLUMN_A, LOWEST_LEVEL);
-            store.putColumn(COLUMN_B, LOWEST_LEVEL);
-        }
-
-        givenFormatThree();
-
-        assertEquals(Map.of(COLUMN_A, RAISED_LEVEL, COLUMN_B, RAISED_LEVEL), columnsAt(RAISED_LEVEL));
     }
 
     private void givenCellsAtLevelZeroAndUp() {
@@ -524,11 +512,6 @@ class SqliteCellStoreTest {
 
     private SqliteCellStore open(int level, long graceMillis) {
         return SqliteCellStore.open(folder, level, graceMillis, () -> now);
-    }
-
-    private void givenFormatThree() throws SQLException {
-        execute("ALTER TABLE columns DROP COLUMN lowest");
-        execute("PRAGMA user_version = " + StoreFormat.BEFORE_LOWEST);
     }
 
     private Map<Long, Integer> columnsAt(int level) {

@@ -301,7 +301,7 @@ public final class IngestService {
             try {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
 
-                PyramidDownsampler.build(pyramid, states);
+                PyramidDownsampler.build(pyramid, states, states);
                 merger.merge(pyramid, sectionX, sectionY, sectionZ);
             } finally {
                 if (remaining != null && remaining.decrementAndGet() == 0) {
