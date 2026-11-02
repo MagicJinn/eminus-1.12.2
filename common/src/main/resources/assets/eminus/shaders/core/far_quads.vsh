@@ -25,6 +25,8 @@ flat out uvec2 occlusionWord;
 out vec3 nearPoint;
 #endif
 
+invariant gl_Position;
+
 const int LIGHT_STEP = 16;
 const vec4 CULLED_POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 

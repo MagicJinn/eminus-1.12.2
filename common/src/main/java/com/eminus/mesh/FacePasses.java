@@ -389,9 +389,14 @@ public final class FacePasses {
     }
 
     private int sided(int modelId, FaceSide side) {
-        return ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && cut(side)
+        return (ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && cut(side)) || overlaid(side)
                 ? models.oneSidedModelId(modelId)
                 : modelId;
+    }
+
+    private boolean overlaid(FaceSide side) {
+        return liquid && axis != Direction.Axis.Y && !VoxelEntry.isAir(side.facing)
+                && models.overlaysFluid(stateId, VoxelEntry.state(side.facing));
     }
 
     private boolean cut(FaceSide side) {
