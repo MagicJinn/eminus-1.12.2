@@ -1,6 +1,7 @@
 package com.eminus.mesh;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
@@ -18,7 +19,8 @@ public final class RowMasks {
     private final long[] positive = new long[ROWS];
     private final long[] negative = new long[ROWS];
 
-    public void build(CellVoxels voxels, StateOpacity opacity, int voxelBlocks, Direction.Axis axis) {
+    public void build(CellVoxels voxels, StateOpacity opacity, MeshModels models, int voxelBlocks,
+            Direction.Axis axis) {
         for (int row = 0; row < ROWS; row++) {
             int v = row / SIDE;
             int u = row % SIDE;
@@ -33,8 +35,10 @@ public final class RowMasks {
 
                 long bit = 1L << (at + FIRST_VOXEL_BIT);
                 occupiedBits |= bit;
+                int state = VoxelEntry.state(entry);
                 if (VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS
-                        && (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY
+                        && models.layerBlocks(state) == StateLayers.NOT_LAYERED
+                        && (opacity.opacity(state) >= StateTable.FULL_OPACITY
                                 || opacity.coversGround(entry, voxelBlocks))) {
                     opaqueBits |= bit;
                 }

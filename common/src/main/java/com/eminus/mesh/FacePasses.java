@@ -42,8 +42,10 @@ public final class FacePasses {
     private int x;
     private int y;
     private int z;
+    private long whole;
     private long owner;
     private int stateId;
+    private int layer;
     private int sourceModel;
     private int drawn;
     private int metadata;
@@ -73,7 +75,7 @@ public final class FacePasses {
             axis = along;
             low.towards = Direction.get(Direction.AxisDirection.NEGATIVE, along);
             high.towards = Direction.get(Direction.AxisDirection.POSITIVE, along);
-            scratch.masks().build(scratch.voxels(), opacity, voxelBlocks, along);
+            scratch.masks().build(scratch.voxels(), opacity, models, voxelBlocks, along);
 
             for (plane = 0; plane < SIDE; plane++) {
                 clearPlanes();
@@ -149,8 +151,10 @@ public final class FacePasses {
         x = PlaneAxes.x(axis, atU, atV, plane);
         y = PlaneAxes.y(axis, atU, atV, plane);
         z = PlaneAxes.z(axis, atU, atV, plane);
-        owner = voxels.entry(x, y, z);
-        stateId = VoxelEntry.state(owner);
+        whole = voxels.entry(x, y, z);
+        stateId = VoxelEntry.state(whole);
+        layer = models.layerBlocks(stateId);
+        owner = LayerParts.block(whole, layer, voxelBlocks);
 
         Direction step = high.towards;
         low.at(voxels, x - step.getStepX(), y - step.getStepY(), z - step.getStepZ());
@@ -207,6 +211,7 @@ public final class FacePasses {
             return true;
         }
 
+        owner = LayerParts.fluid(whole, layer);
         low.model = drawnModels.facingFluid(low.facing, low.x, low.y, low.z);
         high.model = drawnModels.facingFluid(high.facing, high.x, high.y, high.z);
         if (low.model == MeshModels.MISSING || high.model == MeshModels.MISSING) {
@@ -235,6 +240,8 @@ public final class FacePasses {
         negativeFaces = negative;
         positiveFaces = positive;
         shaped = false;
+        low.part(liquid, models, voxelBlocks);
+        high.part(liquid, models, voxelBlocks);
     }
 
     private boolean sides() {

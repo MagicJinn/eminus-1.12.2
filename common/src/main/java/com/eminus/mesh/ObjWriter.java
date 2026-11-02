@@ -17,6 +17,7 @@ public final class ObjWriter {
         "down", "up", "north", "south", "west", "east", "double-sided", "translucent", "border-down", "border-up",
         "border-north", "border-south", "border-west", "border-east"};
     private static final int[][] CORNER_STEPS = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+    private static final String MODEL_PREFIX = "usemtl m";
 
     @SuppressWarnings("EnumOrdinal")
     private static final int X = Direction.Axis.X.ordinal();
@@ -43,6 +44,8 @@ public final class ObjWriter {
 
                 for (int index = start; index < start + count; index++) {
                     long quad = mesh.quad(index);
+                    out.write(MODEL_PREFIX + Quad.modelId(quad));
+                    out.newLine();
                     boolean fluid = ModelMetadata.has(models.metadata(Quad.modelId(quad)), ModelMetadata.FLUID);
                     vertex = quad(out, quad, new Placed(level, fluid, mesh.placement(quad)), vertex);
                 }
