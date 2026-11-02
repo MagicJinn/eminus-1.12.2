@@ -3,9 +3,11 @@ package com.eminus.compat.iris;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -58,8 +60,8 @@ public final class PackProgram {
     static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
             .mapToInt(Integer::intValue).max().orElseThrow() + 1;
     private static final String LOCATION_PREFIX = "pack";
-    private static final String DEPTH_SUFFIX = "_depth";
     private static final String NO_SUFFIX = "";
+    private static final String STEPPED = "a translucent program names its step";
     private static final String MODEL_VIEW = "iris_ModelViewMatrix";
     private static final String MODEL_VIEW_INVERSE = "iris_ModelViewMatrixInverse";
     private static final String PROJECTION = "iris_ProjectionMatrix";
@@ -130,7 +132,7 @@ public final class PackProgram {
     }
 
     private static PipelineSpec spec(FarDraw draw, ProgramSet programSet, PackPath.Source source, Kind kind,
-            boolean depthOnly, Location location) {
+            FarDraw.@Nullable TranslucentStep step, Location location) {
         boolean animated = IrisShaderPack.lodAnimationsChosen();
         boolean packCuts = source.cutout() == PackPath.Cutout.PACK;
         return switch (kind) {
@@ -138,23 +140,22 @@ public final class PackProgram {
                     source.vertexStage(), animated, PackAlphaTest.cut(programSet, kind, source.cutout()), packCuts);
             case BEAM, BEAM_GLOW -> draw.packBeamPipeline(location, kind == Kind.BEAM_GLOW, source.vertexStage(),
                     animated);
-            case OPAQUE, TRANSLUCENT -> depthOnly
-                    ? draw.packDepthPipeline(location, source.vertexStage(), animated,
-                            PackAlphaTest.cut(programSet, kind, source.cutout()))
-                    : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated,
-                            programSet.getPackDirectives().shouldUseSeparateAo(),
-                            PackAlphaTest.cut(programSet, kind, source.cutout()), packCuts);
+            case OPAQUE -> draw.packOpaquePipeline(location, source.vertexStage(), animated,
+                    programSet.getPackDirectives().shouldUseSeparateAo(),
+                    PackAlphaTest.cut(programSet, kind, source.cutout()), packCuts);
+            case TRANSLUCENT -> draw.packTranslucentPipeline(location, Objects.requireNonNull(step, STEPPED),
+                    source.vertexStage(), animated, programSet.getPackDirectives().shouldUseSeparateAo(),
+                    PackAlphaTest.cut(programSet, kind, source.cutout()));
         };
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
             ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind,
-            boolean depthOnly) {
+            FarDraw.@Nullable TranslucentStep step) {
         String name = source.programName();
-        Location location = new Location(Eminus.MODID,
-                LOCATION_PREFIX + source.file() + (depthOnly ? DEPTH_SUFFIX : NO_SUFFIX));
+        Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file() + suffix(step));
         ProgramSource[] built = new ProgramSource[1];
-        PipelineSpec spec = spec(draw, programSet, source, kind, depthOnly, location);
+        PipelineSpec spec = spec(draw, programSet, source, kind, step, location);
         Pipeline pipeline = foreign.pipeline(spec,
                 FIRST_UNIT,
                 ours -> {
@@ -207,6 +208,11 @@ public final class PackProgram {
         }
     }
 
+    private static String suffix(FarDraw.@Nullable TranslucentStep step) {
+        return step == null || step == FarDraw.TranslucentStep.FRONT ? NO_SUFFIX
+                : "_" + step.name().toLowerCase(Locale.ROOT);
+    }
+
     ProgramSource source() {
         return source;
     }
@@ -215,16 +221,24 @@ public final class PackProgram {
         foreign.release(pipeline);
     }
 
-    void draw(FarDraw draw, GlFramebuffer framebuffer, boolean translucent) {
+    void drawOpaque(FarDraw draw, GlFramebuffer framebuffer) {
         FarTarget target = draw.target();
         try (Pass farPass = open(framebuffer, target.width(), target.height())) {
             use(farPass, draw.view(), draw.projection(), draw.lightmap());
             draw.bind(farPass);
-            if (translucent) {
-                draw.drawTranslucent(farPass);
-            } else {
-                draw.drawOpaque(farPass);
-            }
+            draw.drawOpaque(farPass);
+        } finally {
+            restore();
+        }
+    }
+
+    void drawTranslucent(FarDraw draw, GlFramebuffer framebuffer, Consumer<Pass> bindDepth) {
+        FarTarget target = draw.target();
+        try (Pass farPass = open(framebuffer, target.width(), target.height())) {
+            use(farPass, draw.view(), draw.projection(), draw.lightmap());
+            draw.bind(farPass);
+            bindDepth.accept(farPass);
+            draw.drawTranslucent(farPass);
         } finally {
             restore();
         }

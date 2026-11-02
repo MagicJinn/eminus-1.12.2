@@ -15,6 +15,10 @@ public interface StateBaker {
         return null;
     }
 
+    default boolean fluidOverlaid(BlockState state) {
+        return false;
+    }
+
     default void pick(BlockState state, RandomSource random, List<Object> parts) {
         throw new UnsupportedOperationException("This baker classifies no state as positional.");
     }

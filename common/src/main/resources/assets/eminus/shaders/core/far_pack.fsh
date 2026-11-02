@@ -12,6 +12,24 @@ uniform usamplerBuffer EminusNearSections;
 #include <eminus:far_near.glsl>
 #include <eminus:far_corners.glsl>
 
+#ifdef EMINUS_DEPTH_REVERSED
+#define EMINUS_NEARER(a, b) ((a) > (b))
+#else
+#define EMINUS_NEARER(a, b) ((a) < (b))
+#endif
+
+#ifdef IN_FRONT_OF_OPAQUE
+uniform sampler2D EminusOpaqueDepth;
+#endif
+
+float eminus_depth_before_iris_flip() {
+    return 1.0 - gl_FragCoord.z;
+}
+
+#ifdef BEHIND_FRONT
+uniform sampler2D EminusFrontDepth;
+#endif
+
 in vec2 eminus_faceUV;
 in vec3 eminus_nearPoint;
 in vec3 eminus_voxelPoint;
@@ -81,6 +99,16 @@ EminusFragment eminus_fragment() {
 #endif
 #if !defined DH_PROGRAM || defined PACK_SHADOW_PROGRAM
     if (eminus_in_near_section(eminus_nearPoint)) {
+        discard;
+    }
+#endif
+#ifdef IN_FRONT_OF_OPAQUE
+    if (EMINUS_NEARER(texelFetch(EminusOpaqueDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
+        discard;
+    }
+#endif
+#ifdef BEHIND_FRONT
+    if (!EMINUS_NEARER(texelFetch(EminusFrontDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
         discard;
     }
 #endif

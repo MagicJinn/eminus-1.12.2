@@ -13,6 +13,6 @@ public record GameFluids(FluidStateModelSet models) implements FluidModels {
         net.minecraft.client.renderer.block.FluidModel model = models.get(fluid);
         BlockTintSource tint = model.tintSource();
         return new FluidModel(new GameSprite(model.stillMaterial().sprite()), model.layer().translucent(),
-                tint == null ? null : new GameTintSource(tint));
+                tint == null ? null : new GameTintSource(tint), model.overlayMaterial() != null);
     }
 }

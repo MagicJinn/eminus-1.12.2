@@ -73,6 +73,7 @@ final class GameTypes {
         return switch (compare) {
             case GREATER_OR_EQUAL -> CompareOp.GREATER_THAN_OR_EQUAL;
             case LESS_OR_EQUAL -> CompareOp.LESS_THAN_OR_EQUAL;
+            case EQUAL -> CompareOp.EQUAL;
         };
     }
 

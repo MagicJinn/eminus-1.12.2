@@ -28,6 +28,10 @@ public final class FluidBaker {
         return models.model(fluid).tint();
     }
 
+    public boolean overlaid(FluidState fluid) {
+        return models.model(fluid).overlay();
+    }
+
     public BakedModel bake(FluidState fluid, @Nullable Tint tint) {
         FluidModel model = models.model(fluid);
         int[] side = still(model.still());

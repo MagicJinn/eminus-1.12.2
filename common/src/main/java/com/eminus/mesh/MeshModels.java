@@ -34,6 +34,8 @@ public interface MeshModels {
 
     boolean skipsFace(int stateId, int facingStateId, Direction face);
 
+    boolean overlaysFluid(int stateId, int facingStateId);
+
     int tintRow(int modelId);
 
     boolean fillsHeight(int modelId);
