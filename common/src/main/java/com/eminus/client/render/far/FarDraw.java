@@ -1,5 +1,7 @@
 package com.eminus.client.render.far;
 
+import java.util.OptionalDouble;
+
 import com.eminus.Eminus;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.client.model.ModelPublisher;
@@ -9,7 +11,9 @@ import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
 import com.eminus.gpu.pipeline.Blend;
+import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
@@ -25,6 +29,7 @@ import org.jspecify.annotations.Nullable;
 public final class FarDraw {
     private static final Location PACK_SHADER = new Location(Eminus.MODID, "core/far_pack");
     private static final float NO_CUTOUT = 0.0F;
+    private static final String FRONT_DEPTH_CLEAR_LABEL = "eminus-pack-translucent-front-depth-clear";
 
     private final Gpu gpu;
     private final DepthConvention depth;
@@ -55,6 +60,17 @@ public final class FarDraw {
 
         public boolean hook() {
             return this == HOOK || this == SHADOW_HOOK;
+        }
+    }
+
+    public enum TranslucentStep {
+        FRONT_DEPTH,
+        BEHIND,
+        FRONT,
+        DEPTH;
+
+        public boolean drawsColor() {
+            return this == BEHIND || this == FRONT;
         }
     }
 
@@ -113,18 +129,28 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated,
-            boolean separateAo, @Nullable AlphaCut cut, boolean packCuts) {
-        PipelineSpec.Builder builder = translucent
-                ? pack(location, cut, Blend.TRANSLUCENT, true, false, vertex, animated)
-                        .withDefine("TRANSLUCENT_PASS")
-                : coverage(pack(location, cut, null, true, true, vertex, animated), packCuts);
+    public PipelineSpec packOpaquePipeline(Location location, PackVertex vertex, boolean animated, boolean separateAo,
+            @Nullable AlphaCut cut, boolean packCuts) {
+        PipelineSpec.Builder builder = coverage(pack(location, cut, null, true, depth.compare(), true, vertex,
+                animated), packCuts);
         return separateAo ? builder.withDefine("SEPARATE_AO").build() : builder.build();
     }
 
-    public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated,
-            @Nullable AlphaCut cut) {
-        return pack(location, cut, null, false, true, vertex, animated).withDefine("TRANSLUCENT_PASS").build();
+    public PipelineSpec packTranslucentPipeline(Location location, TranslucentStep step, PackVertex vertex,
+            boolean animated, boolean separateAo, @Nullable AlphaCut cut) {
+        PipelineSpec.Builder builder = switch (step) {
+            case FRONT_DEPTH -> FarQuads.inFrontOfOpaque(
+                    pack(location, cut, null, false, depth.compare(), true, vertex, animated));
+            case BEHIND -> FarQuads.behindFront(
+                    pack(location, cut, Blend.TRANSLUCENT, true, depth.compare(), false, vertex, animated));
+            case FRONT -> pack(location, cut, Blend.TRANSLUCENT, true, DepthCompare.EQUAL, false, vertex, animated);
+            case DEPTH -> pack(location, cut, null, false, depth.compare(), true, vertex, animated);
+        };
+        builder.withDefine("TRANSLUCENT_PASS");
+        if (depth.reversed()) {
+            builder.withDefine("EMINUS_DEPTH_REVERSED");
+        }
+        return separateAo && step.drawsColor() ? builder.withDefine("SEPARATE_AO").build() : builder.build();
     }
 
     public PipelineSpec packBeamPipeline(Location location, boolean glow, PackVertex vertex, boolean animated) {
@@ -132,10 +158,10 @@ public final class FarDraw {
     }
 
     private PipelineSpec.Builder pack(Location location, @Nullable AlphaCut cut, @Nullable Blend blend,
-            boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
+            boolean writesColor, DepthCompare compare, boolean writesDepth, PackVertex vertex, boolean animated) {
         return withVertex(packShader(location, cut)
                 .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
-                .withDepthTest(depth.compare(), writesDepth), vertex, animated);
+                .withDepthTest(compare, writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
@@ -179,11 +205,24 @@ public final class FarDraw {
     }
 
     public void bind(Pass pass) {
-        FarQuads.bind(pass, arena, models, lightmap, atlas, frame.buffer(), nearSections.texels());
+        FarQuads.bind(pass, arena, models, null, atlas, frame.buffer(), nearSections.texels());
+    }
+
+    public void bindOpaqueDepth(Pass pass) {
+        FarQuads.bindOpaqueDepth(pass, target.depth());
+    }
+
+    public void bindFrontDepth(Pass pass) {
+        FarQuads.bindFrontDepth(pass, target.frontDepth());
+    }
+
+    public void clearFrontDepth() {
+        gpu.pass(PassSpec.of(FRONT_DEPTH_CLEAR_LABEL, target.color(), null)
+                .withDepth(target.frontDepth(), OptionalDouble.of(depth.farthest()))).close();
     }
 
     public void bindShadow(Pass pass, FarShadow shadow) {
-        FarQuads.bind(pass, arena, models, lightmap, atlas, shadow.frameBuffer(), nearSections.texels());
+        FarQuads.bind(pass, arena, models, null, atlas, shadow.frameBuffer(), nearSections.texels());
     }
 
     public void drawOpaque(Pass pass) {

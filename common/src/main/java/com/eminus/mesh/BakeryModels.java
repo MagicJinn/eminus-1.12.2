@@ -7,6 +7,9 @@ import com.eminus.model.ModelIndex;
 import com.eminus.model.ModelSource;
 
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HalfTransparentBlock;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.material.FluidState;
 
 public record BakeryModels(ModelIndex index, ModelSource models) implements MeshModels {
@@ -73,6 +76,12 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     @Override
     public boolean skipsFace(int stateId, int facingStateId, Direction face) {
         return index.state(stateId).skipRendering(index.state(facingStateId), face);
+    }
+
+    @Override
+    public boolean overlaysFluid(int stateId, int facingStateId) {
+        Block facing = index.state(facingStateId).getBlock();
+        return index.fluidOverlaid(stateId) && (facing instanceof HalfTransparentBlock || facing instanceof LeavesBlock);
     }
 
     @Override

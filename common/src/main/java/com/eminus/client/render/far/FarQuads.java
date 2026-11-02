@@ -47,11 +47,14 @@ final class FarQuads {
     private static final String ATLAS = "EminusAtlas";
     private static final String TINT_MASK = "EminusTintMask";
     private static final String LIGHTMAP = "Lightmap";
+    private static final String FRONT_DEPTH = "EminusFrontDepth";
+    private static final String OPAQUE_DEPTH = "EminusOpaqueDepth";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
     static PipelineSpec.Builder pipeline(Location location, float alphaCutout, Capabilities capabilities,
             VariantDraw variantDraw) {
-        return pipeline(location, SHADER, alphaCutout, capabilities, variantDraw);
+        return pipeline(location, SHADER, alphaCutout, capabilities, variantDraw, true)
+                .withBinding(Binding.sampled(LIGHTMAP));
     }
 
     static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
@@ -61,6 +64,7 @@ final class FarQuads {
 
     static PipelineSpec.Builder solidPipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
         return pipeline(location, SHADER, OpaquePass.ALPHA_CUTOUT, capabilities, variantDraw, false)
+                .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("SOLID");
     }
 
@@ -78,7 +82,6 @@ final class FarQuads {
 
         builder.withBinding(Binding.sampled(ATLAS))
                 .withBinding(Binding.sampled(TINT_MASK))
-                .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("QUADS_PER_SEGMENT", ArenaAllocator.QUADS_PER_SEGMENT)
                 .withDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
                 .withDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
@@ -180,11 +183,27 @@ final class FarQuads {
                 .withDefine("OCCLUSION_HIGH_U_HIGH_V", OcclusionWord.HIGH_U_HIGH_V);
     }
 
+    static PipelineSpec.Builder inFrontOfOpaque(PipelineSpec.Builder builder) {
+        return builder.withDefine("IN_FRONT_OF_OPAQUE").withBinding(Binding.sampled(OPAQUE_DEPTH));
+    }
+
+    static PipelineSpec.Builder behindFront(PipelineSpec.Builder builder) {
+        return builder.withDefine("BEHIND_FRONT").withBinding(Binding.sampled(FRONT_DEPTH));
+    }
+
+    static void bindOpaqueDepth(Pass pass, Texture opaqueDepth) {
+        pass.bind(OPAQUE_DEPTH, opaqueDepth, Sampler.NEAREST);
+    }
+
+    static void bindFrontDepth(Pass pass, Texture frontDepth) {
+        pass.bind(FRONT_DEPTH, frontDepth, Sampler.NEAREST);
+    }
+
     static Sampler atlasSampler(TerrainFilter filter) {
         return filter == TerrainFilter.NEAREST ? Sampler.NEAREST_MIPPED : Sampler.LINEAR_MIPPED;
     }
 
-    static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
+    static void bind(Pass pass, GeometryArena arena, ModelPublisher models, @Nullable Texture lightmap, Sampler atlas,
             Buffer frame, @Nullable TexelView nearSections) {
         pass.bind(FarFrame.BLOCK.name(), frame);
         pass.bind(QUADS, arena.quads());
@@ -196,7 +215,9 @@ final class FarQuads {
         }
         pass.bind(ATLAS, models.atlas().color(), atlas);
         pass.bind(TINT_MASK, models.atlas().tintMask(), atlas);
-        pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
+        if (lightmap != null) {
+            pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
+        }
         pass.quadIndices(MAX_GROUP_INDICES);
     }
 

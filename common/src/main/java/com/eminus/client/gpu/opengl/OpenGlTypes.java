@@ -70,6 +70,7 @@ final class OpenGlTypes {
         return switch (compare) {
             case GREATER_OR_EQUAL -> GL11C.GL_GEQUAL;
             case LESS_OR_EQUAL -> GL11C.GL_LEQUAL;
+            case EQUAL -> GL11C.GL_EQUAL;
         };
     }
 

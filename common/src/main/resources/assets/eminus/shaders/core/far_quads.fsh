@@ -28,12 +28,34 @@ in vec3 nearPoint;
 #moj_import <eminus:far_near.glsl>
 #endif
 
+#if defined(IN_FRONT_OF_OPAQUE) || defined(BEHIND_FRONT)
+#moj_import <eminus:far_depth.glsl>
+#endif
+
+#ifdef IN_FRONT_OF_OPAQUE
+uniform sampler2D EminusOpaqueDepth;
+#endif
+
+#ifdef BEHIND_FRONT
+uniform sampler2D EminusFrontDepth;
+#endif
+
 out vec4 fragColor;
 
 void main() {
     vec2 occlusionFootprint = fwidth(occlusionPoint);
 #ifdef NEAR_SECTIONS
     if (eminus_in_near_section(nearPoint)) {
+        discard;
+    }
+#endif
+#ifdef IN_FRONT_OF_OPAQUE
+    if (NEARER(texelFetch(EminusOpaqueDepth, ivec2(gl_FragCoord.xy), 0).r, gl_FragCoord.z)) {
+        discard;
+    }
+#endif
+#ifdef BEHIND_FRONT
+    if (!NEARER(texelFetch(EminusFrontDepth, ivec2(gl_FragCoord.xy), 0).r, gl_FragCoord.z)) {
         discard;
     }
 #endif
