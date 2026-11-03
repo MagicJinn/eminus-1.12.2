@@ -37,6 +37,7 @@ final class FakeModels implements MeshModels {
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final Map<Integer, Integer> fluidKinds = new HashMap<>();
+    private final Set<Integer> waters = new HashSet<>();
     private final Map<Integer, Float> fluidHeights = new HashMap<>();
     private final Set<Integer> solids = new HashSet<>();
     private final Map<Integer, Integer> shades = new HashMap<>();
@@ -100,6 +101,11 @@ final class FakeModels implements MeshModels {
     void holds(int stateId, int fluid, float height) {
         fluidKinds.put(stateId, fluid);
         fluidHeights.put(stateId, height);
+    }
+
+    void water(int stateId, float height) {
+        holds(stateId, 0, height);
+        waters.add(stateId);
     }
 
     void layer(int stateId, int blocks) {
@@ -285,6 +291,11 @@ final class FakeModels implements MeshModels {
     public boolean sameFluid(int stateId, int otherStateId) {
         Integer fluid = fluidKinds.get(stateId);
         return fluid != null && fluid.equals(fluidKinds.get(otherStateId));
+    }
+
+    @Override
+    public boolean water(int stateId) {
+        return waters.contains(stateId);
     }
 
     @Override

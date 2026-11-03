@@ -168,8 +168,8 @@ public final class MeshService {
         scratch.begin(frame, task.key(), tints, blendRadius);
 
         AtomicBoolean retried = new AtomicBoolean();
-        return new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
-                occlusion.corners(task.level()), () -> {
+        return new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()), occlusion,
+                () -> {
             if (retried.compareAndSet(false, true)) {
                 submit(task.retry());
             }

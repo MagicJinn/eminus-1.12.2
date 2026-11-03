@@ -20,7 +20,7 @@ public final class BladePass {
         this.scratch = scratch;
         this.models = models;
         this.whenBaked = whenBaked;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level, corners);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, corners, false);
     }
 
     public boolean run() {

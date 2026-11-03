@@ -38,7 +38,7 @@ public final class MeshWiring {
             case FINEST_LEVEL -> MeshOcclusion.FINEST_LEVEL;
             case OFF -> MeshOcclusion.NONE;
         };
-        return levels.withRule(cornerRule());
+        return levels.withRule(cornerRule()).withWater(SodiumMixinPlugin.sodiumPresent());
     }
 
     public static CornerRule cornerRule() {
