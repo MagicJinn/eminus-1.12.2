@@ -23,7 +23,7 @@ flat out int eminus_face;
 flat out float eminus_emission;
 flat out int eminus_blockId;
 #ifndef DH_PROGRAM
-out vec2 eminus_occlusionPoint;
+out vec3 eminus_occlusionPoint;
 flat out vec2 eminus_occlusionSize;
 flat out uvec2 eminus_occlusion;
 #endif
@@ -125,7 +125,7 @@ void eminus_vertex() {
     eminus_face = vertex.face;
     eminus_emission = float(vertex.emission) / float(MAX_EMISSION);
 #ifndef DH_PROGRAM
-    eminus_occlusionPoint = vertex.occlusionPoint;
+    eminus_occlusionPoint = vec3(vertex.occlusionPoint, vertex.occlusionInner);
     eminus_occlusionSize = vertex.occlusionSize;
     eminus_occlusion = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
 #endif

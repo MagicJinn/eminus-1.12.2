@@ -18,6 +18,7 @@ public final class FaceOcclusion {
     private final boolean finest;
     private final boolean drawn;
     private final boolean ownSide;
+    private final boolean water;
 
     private int baseX;
     private int baseY;
@@ -32,12 +33,13 @@ public final class FaceOcclusion {
     private int vY;
     private int vZ;
 
-    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level, CornerRule corners) {
+    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level, CornerRule corners, boolean water) {
         this.voxels = voxels;
         this.models = models;
         finest = level == DetailLevel.MIN;
         drawn = corners != CornerRule.NONE;
         ownSide = corners == CornerRule.OWN_SIDE;
+        this.water = water;
     }
 
     public int face(Direction face, int x, int y, int z, int stateId, int metadata, float inset) {
@@ -46,6 +48,15 @@ public final class FaceOcclusion {
         }
 
         return word(face, x, y, z, FaceCubic.of(models, stateId, metadata, inset));
+    }
+
+    public int fluid(Direction face, int x, int y, int z, int stateId) {
+        if (!drawn || !water || !models.water(stateId)) {
+            return OcclusionWord.NONE;
+        }
+
+        int outer = word(face, x, y, z, true);
+        return face == Direction.UP ? OcclusionWord.of(outer, word(face, x, y, z, false)) : outer;
     }
 
     public int blade(int x, int y, int z, int metadata) {

@@ -18,7 +18,7 @@ layout(location = 3) flat in ivec2 atlasCell;
 layout(location = 5) flat in ivec4 variantInfo;
 layout(location = 6) flat in ivec3 cellOrigin;
 layout(location = 7) in vec3 voxelPoint;
-layout(location = 8) in vec2 occlusionPoint;
+layout(location = 8) in vec3 occlusionPoint;
 layout(location = 9) flat in vec2 occlusionSize;
 layout(location = 10) flat in uvec2 occlusionWord;
 
@@ -44,7 +44,7 @@ uniform sampler2D EminusFrontDepth;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    vec2 occlusionFootprint = fwidth(occlusionPoint);
+    vec2 occlusionFootprint = fwidth(occlusionPoint.xy);
 #ifdef NEAR_SECTIONS
     if (eminus_in_near_section(nearPoint)) {
         discard;
@@ -76,8 +76,8 @@ void main() {
     }
 #endif
 
-    color.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint, occlusionSize, occlusionWord.y != 0u,
-            occlusionFootprint);
+    color.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint.xy, occlusionSize, occlusionWord.y != 0u,
+            occlusionFootprint, occlusionPoint.z);
 
 #ifdef FULL_COVERAGE
     fragColor = vec4(color.rgb, 1.0);

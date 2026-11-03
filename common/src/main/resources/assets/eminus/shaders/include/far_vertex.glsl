@@ -23,6 +23,7 @@ struct EminusQuadVertex {
     bool mainDiagonal;
     vec2 occlusionPoint;
     vec2 occlusionSize;
+    float occlusionInner;
 };
 
 const int EMINUS_CORNERS_PER_QUAD = 4;
@@ -197,14 +198,22 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     int colorIndex = int(eminus_field(quad, QUAD_COLOR_SHIFT, QUAD_COLOR_BITS));
     int quadInMesh = quadIndex - int(mesh.z);
     bool occluded = (mesh.w >> MESH_UNOCCLUDED_SHIFT) == 0u;
-    int meshQuads = int(mesh.w & ((1u << MESH_UNOCCLUDED_SHIFT) - 1u));
+    bool innerOccluded = ((mesh.w >> MESH_INNER_OCCLUDED_SHIFT) & 1u) != 0u;
+    int meshQuads = int(mesh.w & ((1u << MESH_INNER_OCCLUDED_SHIFT) - 1u));
     int streamStart = int(mesh.z) + meshQuads;
-    int occlusionSlots = occluded ? (meshQuads + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT : 0;
+    int outerSlots = occluded ? (meshQuads + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT : 0;
+    int occlusionSlots = innerOccluded ? 2 * outerSlots : outerSlots;
     vertex.occlusion = 0u;
+    vertex.occlusionInner = 0.0;
     if (occluded) {
-        uvec2 occlusionSlot = texelFetch(EminusQuads, streamStart + quadInMesh / OCCLUSION_PER_SLOT).xy;
-        vertex.occlusion = eminus_field(occlusionSlot, quadInMesh % OCCLUSION_PER_SLOT * OCCLUSION_BITS,
-                                        OCCLUSION_BITS);
+        int wordShift = quadInMesh % OCCLUSION_PER_SLOT * OCCLUSION_BITS;
+        int wordSlot = quadInMesh / OCCLUSION_PER_SLOT;
+        vertex.occlusion = eminus_field(texelFetch(EminusQuads, streamStart + wordSlot).xy, wordShift, OCCLUSION_BITS);
+        if (innerOccluded) {
+            uint inner = eminus_field(texelFetch(EminusQuads, streamStart + outerSlots + wordSlot).xy, wordShift,
+                                      OCCLUSION_BITS);
+            vertex.occlusion |= inner << uint(OCCLUSION_INNER_SHIFT);
+        }
     }
     vertex.mainDiagonal = face >= FIRST_BLADE_FACE || face == 1 || face == 2 || face == 5;
 
@@ -282,7 +291,10 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
             float surface = eminus_fluid_corner(eminus_fluid_corners(corners, boundsMax.y), inward ? face ^ 1 : face, unit);
             if (face == 1) {
                 inset = 1.0 - surface;
+                // Sodium lights a water top between its own layer and the one above, by the corner's height.
+                vertex.occlusionInner = 1.0 - surface;
             } else {
+                vertex.occlusionPoint.y = unit.y * float(height) * blocks;
                 extent.y = unit.y * float(height - 1) + mix(boundsMin.y, surface, unit.y);
                 placedHeight = unit.y * float(height - 1) + mix(drawnBottom, eminus_high(surface, highGap, blocks), unit.y);
             }

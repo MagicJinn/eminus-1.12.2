@@ -187,7 +187,7 @@ class CellMesherLightTest {
         }
 
         scratch.begin(FRAME, key, tints, NO_BLEND);
-        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY, CornerRule.VANILLA,
+        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY, MeshOcclusion.EVERY_LEVEL,
                 () -> { });
         assertNotNull(mesh);
         return mesh;

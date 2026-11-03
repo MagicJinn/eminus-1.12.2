@@ -18,7 +18,7 @@ layout(location = 3) flat out ivec2 atlasCell;
 layout(location = 5) flat out ivec4 variantInfo;
 layout(location = 6) flat out ivec3 cellOrigin;
 layout(location = 7) out vec3 voxelPoint;
-layout(location = 8) out vec2 occlusionPoint;
+layout(location = 8) out vec3 occlusionPoint;
 layout(location = 9) flat out vec2 occlusionSize;
 layout(location = 10) flat out uvec2 occlusionWord;
 
@@ -45,7 +45,7 @@ void main() {
     cellOrigin = vertex.cellOrigin;
     voxelPoint = vertex.voxelPoint;
     tintColor = vertex.tint;
-    occlusionPoint = vertex.occlusionPoint;
+    occlusionPoint = vec3(vertex.occlusionPoint, vertex.occlusionInner);
     occlusionSize = vertex.occlusionSize;
     occlusionWord = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
 

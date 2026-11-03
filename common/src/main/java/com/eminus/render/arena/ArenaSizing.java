@@ -36,7 +36,8 @@ public final class ArenaSizing {
         for (int level = Math.max(lowestLevel, DetailLevel.MIN); level <= DetailLevel.MAX; level++) {
             long quads = (long) ArenaDemand.columns(level, focalPixels, subdivisionPixels, farRenderCells)
                     * ArenaDemand.cellsPerColumn(level) * budgetedQuadsPerCell(level);
-            slots += occlusion.at(level) ? quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT) : quads;
+            long words = Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
+            slots += quads + (occlusion.at(level) ? words : 0) + (occlusion.water(level) ? words : 0);
         }
 
         long bytes = Math.ceilDiv(slots * QUAD_BYTES * WHOLE_PERCENT * WHOLE_PERCENT,
