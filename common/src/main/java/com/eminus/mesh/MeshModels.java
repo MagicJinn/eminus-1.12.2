@@ -34,6 +34,8 @@ public interface MeshModels {
 
     boolean skipsFace(int stateId, int facingStateId, Direction face);
 
+    boolean overlaysFluid(int stateId, int facingStateId);
+
     int tintRow(int modelId);
 
     boolean fillsHeight(int modelId);
@@ -44,7 +46,11 @@ public interface MeshModels {
 
     boolean sameFluid(int stateId, int otherStateId);
 
+    boolean water(int stateId);
+
     float fluidHeight(int stateId);
+
+    int layerBlocks(int stateId);
 
     boolean solid(int stateId);
 

@@ -12,6 +12,24 @@ uniform usamplerBuffer EminusNearSections;
 #include <eminus:far_near.glsl>
 #include <eminus:far_corners.glsl>
 
+#ifdef EMINUS_DEPTH_REVERSED
+#define EMINUS_NEARER(a, b) ((a) > (b))
+#else
+#define EMINUS_NEARER(a, b) ((a) < (b))
+#endif
+
+#ifdef IN_FRONT_OF_OPAQUE
+uniform sampler2D EminusOpaqueDepth;
+#endif
+
+float eminus_depth_before_iris_flip() {
+    return 1.0 - gl_FragCoord.z;
+}
+
+#ifdef BEHIND_FRONT
+uniform sampler2D EminusFrontDepth;
+#endif
+
 in vec2 eminus_faceUV;
 in vec3 eminus_nearPoint;
 in vec3 eminus_voxelPoint;
@@ -27,7 +45,7 @@ flat in int eminus_face;
 flat in float eminus_emission;
 flat in int eminus_blockId;
 #ifndef DH_PROGRAM
-in vec2 eminus_occlusionPoint;
+in vec3 eminus_occlusionPoint;
 flat in vec2 eminus_occlusionSize;
 flat in uvec2 eminus_occlusion;
 #endif
@@ -77,10 +95,20 @@ bool eminus_alpha_kept(float alpha) {
 
 EminusFragment eminus_fragment() {
 #ifndef DH_PROGRAM
-    vec2 occlusionFootprint = fwidth(eminus_occlusionPoint);
+    vec2 occlusionFootprint = fwidth(eminus_occlusionPoint.xy);
 #endif
 #if !defined DH_PROGRAM || defined PACK_SHADOW_PROGRAM
     if (eminus_in_near_section(eminus_nearPoint)) {
+        discard;
+    }
+#endif
+#ifdef IN_FRONT_OF_OPAQUE
+    if (EMINUS_NEARER(texelFetch(EminusOpaqueDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
+        discard;
+    }
+#endif
+#ifdef BEHIND_FRONT
+    if (!EMINUS_NEARER(texelFetch(EminusFrontDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
         discard;
     }
 #endif
@@ -118,8 +146,8 @@ EminusFragment eminus_fragment() {
 #ifdef DH_PROGRAM
     fragment.glcolor = vec4(eminus_tint, 1.0);
 #else
-    float occlusion = eminus_corner_occlusion(eminus_occlusion.x, eminus_occlusionPoint, eminus_occlusionSize,
-            eminus_occlusion.y != 0u, occlusionFootprint);
+    float occlusion = eminus_corner_occlusion(eminus_occlusion.x, eminus_occlusionPoint.xy, eminus_occlusionSize,
+            eminus_occlusion.y != 0u, occlusionFootprint, eminus_occlusionPoint.z);
 #ifdef SEPARATE_AO
     fragment.glcolor = vec4(eminus_tint, occlusion);
 #else

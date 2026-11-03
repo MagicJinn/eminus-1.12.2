@@ -24,7 +24,7 @@ class OcclusionWordTest {
         assertEquals(2, slots.length);
         assertEquals(0x155L, slots[0] >>> 27 & 0x1FF);
         for (int index = 0; index < WORDS.length; index++) {
-            assertEquals(WORDS[index], OcclusionWord.unpack(slots, index), "word " + index);
+            assertEquals(WORDS[index], OcclusionWord.unpack(slots, WORDS.length, index), "word " + index);
         }
     }
 
@@ -33,7 +33,51 @@ class OcclusionWordTest {
         long[] slots = OcclusionWord.pack(new int[OcclusionWord.PER_SLOT + 1], OcclusionWord.PER_SLOT + 1);
 
         assertEquals(0, slots.length);
-        assertEquals(OcclusionWord.NONE, OcclusionWord.unpack(slots, OcclusionWord.PER_SLOT));
+        assertEquals(OcclusionWord.NONE, OcclusionWord.unpack(slots, OcclusionWord.PER_SLOT + 1,
+                OcclusionWord.PER_SLOT));
+    }
+
+    @Test
+    void anInnerHalfAddsASecondRegionOfTheSameLayout() {
+        int[] words = WORDS.clone();
+        words[3] = OcclusionWord.of(words[3], BLOCK_ON_THE_RIGHT);
+        long[] slots = OcclusionWord.pack(words, words.length);
+
+        assertEquals(2 * OcclusionWord.slots(words.length), slots.length);
+        assertTrue(OcclusionWord.hasInner(slots, words.length));
+        for (int index = 0; index < words.length; index++) {
+            assertEquals(words[index], OcclusionWord.unpack(slots, words.length, index), "word " + index);
+        }
+    }
+
+    @Test
+    void anInnerHalfAloneStillKeepsBothRegions() {
+        long[] slots = OcclusionWord.pack(new int[] {OcclusionWord.of(OcclusionWord.NONE, WALL_BELOW)}, 1);
+
+        assertEquals(2, slots.length);
+        assertEquals(WALL_BELOW, OcclusionWord.inner(OcclusionWord.unpack(slots, 1, 0)));
+    }
+
+    @Test
+    void wordsWithoutAnInnerHalfKeepOneRegion() {
+        assertFalse(OcclusionWord.hasInner(OcclusionWord.pack(WORDS, WORDS.length), WORDS.length));
+    }
+
+    @Test
+    void anInnerHalfThatSplitsTheRunSplitsTheWholeWord() {
+        int beside = OcclusionWord.of(WALL_BELOW, OcclusionWord.NONE);
+
+        assertFalse(OcclusionWord.joinsAlongU(OcclusionWord.of(WALL_BELOW, BLOCK_ON_THE_RIGHT), beside));
+        assertTrue(OcclusionWord.joinsAlongU(OcclusionWord.of(WALL_BELOW, WALL_BELOW),
+                OcclusionWord.of(WALL_BELOW, WALL_BELOW)));
+    }
+
+    @Test
+    void aJoinKeepsEachEndsOwnEdgesInBothHalves() {
+        int low = OcclusionWord.of(WALL_BELOW, WALL_BELOW);
+        int high = OcclusionWord.of(WALL_BELOW | BLOCK_ON_THE_RIGHT, WALL_BELOW | BLOCK_ON_THE_RIGHT);
+
+        assertEquals(high, OcclusionWord.joinAlongU(low, high));
     }
 
     @Test

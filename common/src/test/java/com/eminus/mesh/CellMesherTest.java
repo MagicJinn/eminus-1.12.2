@@ -87,6 +87,10 @@ class CellMesherTest {
     private static final int FLOWER_BED_MODEL = 48;
     private static final int LOW_PETALS_MODEL = 49;
     private static final int STEM_MODEL = 50;
+    private static final int LAYERED_ICE = 51;
+    private static final int ICE_MODEL = 52;
+    private static final int ICE_LEVEL = 2;
+    private static final int ICE_BLOCKS = 1;
     private static final int FLAT_FACES = 2;
     private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
@@ -595,6 +599,22 @@ class CellMesherTest {
     }
 
     @Test
+    void aFluidSideAgainstABlockItsOverlayDrawsOnIsOneSided() {
+        defineSea();
+        models.overlayAgainst(SEA, GLASS);
+        Cell cell = blank();
+        cell.set(5, SEA_TOP_Y, 5, block(SEA));
+        cell.set(6, SEA_TOP_Y, 5, block(GLASS));
+        cell.set(4, SEA_TOP_Y, 5, block(TINT_A));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 5, SEA_TOP_Y, 5, models.oneSidedModelId(SEA_MODEL)));
+        assertFalse(has(mesh, Direction.EAST, 5, SEA_TOP_Y, 5, SEA_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 5, SEA_TOP_Y, 5, SEA_MODEL));
+    }
+
+    @Test
     void aSeaOnTheCutFacesBackIntoItselfWithTheLookAndLightOfItsSeabed() {
         defineSea();
         Cell cell = blank();
@@ -801,6 +821,27 @@ class CellMesherTest {
 
         assertTrue(absent(mesh, Direction.EAST, LAST - 1, 4, 4));
         assertTrue(absent(mesh, Direction.WEST, LAST, 4, 4));
+    }
+
+    @Test
+    void iceLayeredOverTheSeaDrawsItsFacesOnItsOwnBlockAndTheSeaBelowIt() {
+        defineIce();
+        Cell cell = blank();
+        cell.set(4, 3, 4, block(SEA));
+        cell.set(5, 3, 4, block(SEA));
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(LAYERED_ICE), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(SEA), 0, 1));
+
+        CellMesh mesh = mesh(cell, airAround(), ICE_LEVEL);
+
+        int iceSide = placementOf(mesh, Direction.EAST, 4, 4, 4, ICE_MODEL);
+        assertEquals(2, VoxelEntry.lowGapOf(iceSide));
+        assertEquals(1, VoxelEntry.highGapOf(iceSide));
+        assertTrue(has(mesh, Direction.DOWN, 4, 4, 4, ICE_MODEL));
+        assertEquals(2, VoxelEntry.highGapOf(placementOf(mesh, Direction.UP, 4, 4, 4, SEA_MODEL)));
+        assertFalse(has(mesh, Direction.EAST, 4, 4, 4, SEA_MODEL));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        assertTrue(absent(mesh, Direction.UP, 4, 3, 4));
     }
 
     @Test
@@ -1325,6 +1366,30 @@ class CellMesherTest {
         models.makeSolid(STONE);
     }
 
+    private void defineIce() {
+        defineSea();
+        int translucent = ModelMetadata.pack(
+                FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, ModelMetadata.TRANSLUCENT);
+
+        models.define(LAYERED_ICE, ICE_MODEL, translucent);
+        models.defineFluid(LAYERED_ICE, SEA_MODEL, models.metadata(SEA_MODEL));
+        models.layer(LAYERED_ICE, ICE_BLOCKS);
+        models.holds(LAYERED_ICE, SEA_FLUID, SOURCE_HEIGHT);
+        opacities.put(LAYERED_ICE, SEE_THROUGH_DAMPENING);
+    }
+
+    private static int placementOf(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
+                    && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                return mesh.placement(quad);
+            }
+        }
+
+        throw new AssertionError("No " + face + " quad of model " + modelId + " at " + x + ", " + y + ", " + z);
+    }
+
     private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
@@ -1347,7 +1412,8 @@ class CellMesherTest {
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
         return new CellMesher(scratch, models)
-                .mesh(key, center.occupancy(), opacity, CornerRule.VANILLA, () -> bakeRequests++);
+                .mesh(key, center.occupancy(), opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH,
+                        () -> bakeRequests++);
     }
 
     private static ColumnCoverage coverage(long... chunks) {
@@ -1368,7 +1434,8 @@ class CellMesherTest {
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
         return new CellMesher(scratch, models)
-                .mesh(key, center.occupancy(), opacity, CornerRule.VANILLA, () -> bakeRequests++);
+                .mesh(key, center.occupancy(), opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH,
+                        () -> bakeRequests++);
     }
 
     private static Cell blank() {

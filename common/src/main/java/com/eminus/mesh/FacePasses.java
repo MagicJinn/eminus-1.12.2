@@ -42,8 +42,10 @@ public final class FacePasses {
     private int x;
     private int y;
     private int z;
+    private long whole;
     private long owner;
     private int stateId;
+    private int layer;
     private int sourceModel;
     private int drawn;
     private int metadata;
@@ -56,7 +58,7 @@ public final class FacePasses {
     private int shape;
 
     public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, CornerRule cornerRule,
-            Runnable whenBaked, Sink sink) {
+            boolean water, Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
@@ -64,7 +66,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule, water);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
@@ -73,7 +75,7 @@ public final class FacePasses {
             axis = along;
             low.towards = Direction.get(Direction.AxisDirection.NEGATIVE, along);
             high.towards = Direction.get(Direction.AxisDirection.POSITIVE, along);
-            scratch.masks().build(scratch.voxels(), opacity, voxelBlocks, along);
+            scratch.masks().build(scratch.voxels(), opacity, models, voxelBlocks, along);
 
             for (plane = 0; plane < SIDE; plane++) {
                 clearPlanes();
@@ -149,8 +151,10 @@ public final class FacePasses {
         x = PlaneAxes.x(axis, atU, atV, plane);
         y = PlaneAxes.y(axis, atU, atV, plane);
         z = PlaneAxes.z(axis, atU, atV, plane);
-        owner = voxels.entry(x, y, z);
-        stateId = VoxelEntry.state(owner);
+        whole = voxels.entry(x, y, z);
+        stateId = VoxelEntry.state(whole);
+        layer = models.layerBlocks(stateId);
+        owner = LayerParts.block(whole, layer, voxelBlocks);
 
         Direction step = high.towards;
         low.at(voxels, x - step.getStepX(), y - step.getStepY(), z - step.getStepZ());
@@ -207,6 +211,7 @@ public final class FacePasses {
             return true;
         }
 
+        owner = LayerParts.fluid(whole, layer);
         low.model = drawnModels.facingFluid(low.facing, low.x, low.y, low.z);
         high.model = drawnModels.facingFluid(high.facing, high.x, high.y, high.z);
         if (low.model == MeshModels.MISSING || high.model == MeshModels.MISSING) {
@@ -235,6 +240,8 @@ public final class FacePasses {
         negativeFaces = negative;
         positiveFaces = positive;
         shaped = false;
+        low.part(liquid, models, voxelBlocks);
+        high.part(liquid, models, voxelBlocks);
     }
 
     private boolean sides() {
@@ -284,7 +291,7 @@ public final class FacePasses {
 
         if (liquid) {
             if (shown(side, occludingFaces(side.facing, side.drawn))) {
-                quads.set(u, v, fluidData(fluidLight(side), sided(drawn, side), shape()), OcclusionWord.NONE);
+                quads.set(u, v, fluidData(fluidLight(side), sided(drawn, side), shape()), fluidOccluded(side));
             }
 
             return;
@@ -304,7 +311,7 @@ public final class FacePasses {
         if (liquid) {
             if (shown(side, FaceMask.NONE)) {
                 quads.set(u, v, fluidData(QuadLight.of(lit, metadata), sided(drawn, side), shape()),
-                        OcclusionWord.NONE);
+                        fluidOccluded(side));
             }
 
             return;
@@ -316,6 +323,10 @@ public final class FacePasses {
     private int occluded(FaceSide side) {
         return occlusion.face(side.towards, x, y, z, stateId, metadata,
                 models.inset(drawn, side.towards.get3DDataValue()));
+    }
+
+    private int fluidOccluded(FaceSide side) {
+        return occlusion.fluid(side.towards, x, y, z, stateId);
     }
 
     private boolean shown(FaceSide side, int facingOccluding) {
@@ -389,9 +400,14 @@ public final class FacePasses {
     }
 
     private int sided(int modelId, FaceSide side) {
-        return ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && cut(side)
+        return (ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && cut(side)) || overlaid(side)
                 ? models.oneSidedModelId(modelId)
                 : modelId;
+    }
+
+    private boolean overlaid(FaceSide side) {
+        return liquid && axis != Direction.Axis.Y && !VoxelEntry.isAir(side.facing)
+                && models.overlaysFluid(stateId, VoxelEntry.state(side.facing));
     }
 
     private boolean cut(FaceSide side) {

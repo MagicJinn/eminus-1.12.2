@@ -9,6 +9,7 @@ import com.eminus.model.port.BlockModels;
 import com.eminus.model.port.BlockTints;
 import com.eminus.model.port.ModelQuad;
 import com.eminus.model.port.Variant;
+import com.eminus.settings.GrassAndFlowers;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -31,7 +32,7 @@ public final class ModelBaker implements StateBaker {
     private final FluidBaker fluids;
     private final SpriteTexels sprites;
     private final BiomeColors colors;
-    private final boolean drawsBlades;
+    private final GrassAndFlowers grassAndFlowers;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
     private final CountingRandom random = new CountingRandom();
     private final List<ModelQuad> quads = new ArrayList<>();
@@ -39,13 +40,13 @@ public final class ModelBaker implements StateBaker {
     private boolean swept;
 
     public ModelBaker(BlockModels blockModels, BlockTints blockTints, FluidBaker fluids, SpriteTexels sprites,
-            BiomeColors colors, boolean drawsBlades) {
+            BiomeColors colors, GrassAndFlowers grassAndFlowers) {
         this.blockModels = blockModels;
         this.blockTints = blockTints;
         this.fluids = fluids;
         this.sprites = sprites;
         this.colors = colors;
-        this.drawsBlades = drawsBlades;
+        this.grassAndFlowers = grassAndFlowers;
     }
 
     @Override
@@ -148,12 +149,11 @@ public final class ModelBaker implements StateBaker {
     }
 
     private BakedModel blockModel(BlockState shape, BlockState state, boolean opaque, boolean split) {
-        if (!drawsBlades && (FaceRasterizer.bladed(quads) || groundCover(shape, quads))) {
+        if (!grassAndFlowers.drawn() && (FaceRasterizer.bladed(quads) || groundCover(shape, quads))) {
             return BakedModel.empty();
         }
 
-        List<List<ModelQuad>> pieces = split && groundCover(shape, quads) ? GroundCoverPieces.split(quads)
-                : List.of(quads);
+        List<List<ModelQuad>> pieces = split ? pieces(shape, quads, grassAndFlowers) : List.of(quads);
         BakedModel model = piece(pieces.getFirst(), shape, state, opaque);
         if (pieces.size() == 1) {
             return model;
@@ -179,6 +179,12 @@ public final class ModelBaker implements StateBaker {
                 opaque || blockModels.forceOpaque(shape));
     }
 
+    @Override
+    public boolean fluidOverlaid(BlockState state) {
+        FluidState fluid = state.getFluidState();
+        return !fluid.isEmpty() && fluids.overlaid(fluid);
+    }
+
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
         return emissive(fluids.bake(fluid, colors.resolve(fluids.tintSource(fluid), state)), state);
     }
@@ -195,6 +201,11 @@ public final class ModelBaker implements StateBaker {
         }
 
         return random.drew();
+    }
+
+    static List<List<ModelQuad>> pieces(BlockState shape, List<ModelQuad> quads, GrassAndFlowers grassAndFlowers) {
+        return grassAndFlowers.splitsGroundCover() && groundCover(shape, quads) ? GroundCoverPieces.split(quads)
+                : List.of(quads);
     }
 
     static boolean groundCover(BlockState state, List<ModelQuad> quads) {

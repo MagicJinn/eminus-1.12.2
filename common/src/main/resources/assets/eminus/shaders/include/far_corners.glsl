@@ -71,8 +71,8 @@ float eminus_filtered(EminusCorners corners, vec2 point, vec2 size, vec2 footpri
     return eminus_field(corners, ramps);
 }
 
-float eminus_corner_occlusion(uint word, vec2 point, vec2 size, bool mainDiagonal, vec2 footprint) {
-    if (EminusSmoothLighting == 0 || word == 0u) {
+float eminus_layer_occlusion(uint word, vec2 point, vec2 size, bool mainDiagonal, vec2 footprint) {
+    if (word == 0u) {
         return EMINUS_LIT_SHADE;
     }
 
@@ -85,6 +85,21 @@ float eminus_corner_occlusion(uint word, vec2 point, vec2 size, bool mainDiagona
 
     float exact = eminus_triangles(corners, point, size, mainDiagonal);
     return filtered <= 0.0 ? exact : mix(exact, eminus_filtered(corners, point, size, footprint), filtered);
+}
+
+float eminus_corner_occlusion(uint word, vec2 point, vec2 size, bool mainDiagonal, vec2 footprint, float inner) {
+    if (EminusSmoothLighting == 0 || word == 0u) {
+        return EMINUS_LIT_SHADE;
+    }
+
+    uint wordMask = (1u << uint(OCCLUSION_BITS)) - 1u;
+    float outer = eminus_layer_occlusion(word & wordMask, point, size, mainDiagonal, footprint);
+    if (inner <= 0.0) {
+        return outer;
+    }
+
+    uint innerWord = (word >> uint(OCCLUSION_INNER_SHIFT)) & wordMask;
+    return mix(outer, eminus_layer_occlusion(innerWord, point, size, mainDiagonal, footprint), inner);
 }
 
 #endif

@@ -38,6 +38,10 @@ public final class VoxelEntry {
         return (int) (entry & STATE_MASK);
     }
 
+    public static long withState(long entry, int stateId) {
+        return (entry & ~STATE_MASK) | (stateId & STATE_MASK);
+    }
+
     public static int biome(long entry) {
         return (int) ((entry >>> BIOME_SHIFT) & BIOME_MASK);
     }

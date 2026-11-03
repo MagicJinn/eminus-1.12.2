@@ -104,6 +104,48 @@ class StateTableTest {
     }
 
     @Test
+    void aLayeredStateAnswersItsBlockAndTheSourceOfItsFluid() {
+        BlockState ice = Blocks.ICE.defaultBlockState();
+        StateTable table = new StateTable(ids);
+        int iceId = table.idOf(ice);
+        int layered = table.layered(iceId, table.idOf(Blocks.SEAGRASS.defaultBlockState()), 2);
+
+        assertSame(ice, table.state(layered));
+        assertEquals(table.opacity(iceId), table.opacity(layered));
+        assertEquals(2, table.layerBlocks(layered));
+        assertEquals(iceId, table.layerBlock(layered));
+        assertSame(Blocks.WATER.defaultBlockState(), table.state(table.layerFluid(layered)));
+        assertTrue(table.holdsFluid(layered));
+        assertFalse(table.holdsFluid(iceId));
+        assertEquals(StateLayers.NOT_LAYERED, table.layerBlocks(iceId));
+    }
+
+    @Test
+    void theSameLayerTakesOneId() {
+        StateTable table = new StateTable(ids);
+        int iceId = table.idOf(Blocks.ICE.defaultBlockState());
+        int waterId = table.idOf(Blocks.WATER.defaultBlockState());
+
+        assertEquals(table.layered(iceId, waterId, 1), table.layered(iceId, waterId, 1));
+        assertNotEquals(table.layered(iceId, waterId, 1), table.layered(iceId, waterId, 2));
+    }
+
+    @Test
+    void aStoredLayeredStateComesBackWithItsLayer() {
+        BlockState ice = Blocks.ICE.defaultBlockState();
+        StateTable first = new StateTable(ids);
+        int layered = first.layered(first.idOf(ice), first.idOf(Blocks.WATER.defaultBlockState()), 3);
+        StateTable reopened = new StateTable(ids);
+
+        assertSame(ice, reopened.state(layered));
+        assertEquals(3, reopened.layerBlocks(layered));
+        assertSame(ice, reopened.state(reopened.layerBlock(layered)));
+        assertSame(Blocks.WATER.defaultBlockState(), reopened.state(reopened.layerFluid(layered)));
+        assertEquals(layered, reopened.layered(reopened.idOf(ice),
+                reopened.idOf(Blocks.WATER.defaultBlockState()), 3));
+    }
+
+    @Test
     void aStateTheDictionaryCannotResolveGivesThePlaceholder() {
         ids.load(VoxelEntry.AIR_STATE_ID, BlockStateParser.serialize(Blocks.AIR.defaultBlockState()));
         ids.load(DAMAGED_ID, DAMAGED_STATE);

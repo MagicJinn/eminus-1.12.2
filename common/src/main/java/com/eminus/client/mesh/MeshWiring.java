@@ -5,6 +5,7 @@ import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CornerRule;
+import com.eminus.mesh.MeshBlades;
 import com.eminus.mesh.MeshListener;
 import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.MeshOcclusion;
@@ -14,6 +15,7 @@ import com.eminus.platform.Platforms;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.settings.CornerOcclusion;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
@@ -24,8 +26,12 @@ public final class MeshWiring {
         return new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
                 models(runtime, baking), new BakeryTints(baking.colors(), runtime.biomes()),
                 client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()),
-                occlusion(SettingsService.get().settings().lodQuality().cornerOcclusion()), listener,
-                EminusInstance.URGENT_BUILD_WEIGHT);
+                occlusion(SettingsService.get().settings().lodQuality().cornerOcclusion()),
+                blades(baking.grassAndFlowers()), listener, EminusInstance.URGENT_BUILD_WEIGHT);
+    }
+
+    public static MeshBlades blades(GrassAndFlowers grassAndFlowers) {
+        return grassAndFlowers == GrassAndFlowers.SIMPLIFIED ? MeshBlades.ONE : MeshBlades.BOTH;
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {
@@ -38,7 +44,7 @@ public final class MeshWiring {
             case FINEST_LEVEL -> MeshOcclusion.FINEST_LEVEL;
             case OFF -> MeshOcclusion.NONE;
         };
-        return levels.withRule(cornerRule());
+        return levels.withRule(cornerRule()).withWater(SodiumMixinPlugin.sodiumPresent());
     }
 
     public static CornerRule cornerRule() {

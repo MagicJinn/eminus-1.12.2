@@ -16,6 +16,8 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
+import com.eminus.cell.FakeLayers;
+import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellAccess;
@@ -41,6 +43,7 @@ class CellMergerTest {
 
     private static final int[] OPACITY = {0, 15};
     private static final StateOpacity OPACITIES = state -> OPACITY[state];
+    private static final StateLayers LAYERS = new FakeLayers(state -> false);
 
     private final AtomicLong clock = new AtomicLong();
     private final FakeCellStore store = new FakeCellStore();
@@ -84,7 +87,7 @@ class CellMergerTest {
     void aChangeOnTheCellBoundarySetsThatFacesBit() {
         buildFrom(VoxelEntry.AIR);
         set(0, 0, 0, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
 
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
@@ -95,7 +98,7 @@ class CellMergerTest {
     void aChangeOnTheCellCornerReachesTheCellsAcrossItsEdges() {
         buildFrom(VoxelEntry.AIR);
         set(0, 0, 0, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
 
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
@@ -107,7 +110,7 @@ class CellMergerTest {
     void anInteriorChangeSetsNoFace() {
         buildFrom(VoxelEntry.AIR);
         set(INTERIOR, INTERIOR, INTERIOR, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
 
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
@@ -119,7 +122,7 @@ class CellMergerTest {
     void theChangedCellArrivesDirtyAndNoLongerEmpty() {
         buildFrom(VoxelEntry.AIR);
         set(INTERIOR, INTERIOR, INTERIOR, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
 
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
@@ -132,12 +135,12 @@ class CellMergerTest {
     void theChangeCarriesTheOccupancyItWroteUnderARisingSequence() {
         buildFrom(VoxelEntry.AIR);
         set(0, 0, 0, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
         Change filled = changes.get(0);
         changes.clear();
         set(0, 0, 0, VoxelEntry.AIR);
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
 
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
@@ -184,7 +187,7 @@ class CellMergerTest {
     void aStoredBlockIsBeyondOpenSky() {
         buildFrom(VoxelEntry.AIR);
         set(INTERIOR, INTERIOR, INTERIOR, entry(STONE));
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
         assertTrue(probe(merger, 0, 0, 0));
@@ -238,7 +241,7 @@ class CellMergerTest {
 
     private void buildFrom(long entry) {
         Arrays.fill(pyramid.level(DetailLevel.MIN), entry);
-        PyramidDownsampler.build(pyramid, OPACITIES);
+        PyramidDownsampler.build(pyramid, OPACITIES, LAYERS);
     }
 
     private void set(int x, int y, int z, long entry) {

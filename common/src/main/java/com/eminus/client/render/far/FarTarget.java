@@ -14,6 +14,8 @@ public final class FarTarget implements AutoCloseable {
     private static final String COLOR_LABEL = "eminus-far-color";
     private static final String DEPTH_LABEL = "eminus-far-depth";
     private static final String OPAQUE_DEPTH_LABEL = "eminus-far-opaque-depth";
+    private static final String FRONT_DEPTH_LABEL = "eminus-far-front-depth";
+    private static final String SECOND_DEPTH_LABEL = "eminus-far-second-depth";
     public static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
     private static final int MIPS = 1;
@@ -23,6 +25,8 @@ public final class FarTarget implements AutoCloseable {
 
     private Texture color;
     private Texture depth;
+    private Texture frontDepth;
+    private Texture secondDepth;
     private @Nullable Texture opaqueDepth;
 
     private FarTarget(Gpu gpu, Format depthFormat, int width, int height) {
@@ -52,6 +56,14 @@ public final class FarTarget implements AutoCloseable {
         return depth;
     }
 
+    public Texture frontDepth() {
+        return frontDepth;
+    }
+
+    public Texture secondDepth() {
+        return secondDepth;
+    }
+
     public Texture opaqueDepth() {
         if (opaqueDepth == null) {
             opaqueDepth = gpu.texture(OPAQUE_DEPTH_LABEL, USAGE, depthFormat, width(), height(), MIPS);
@@ -77,11 +89,15 @@ public final class FarTarget implements AutoCloseable {
     private void allocate(int width, int height) {
         color = gpu.texture(COLOR_LABEL, USAGE, COLOR_FORMAT, width, height, MIPS);
         depth = gpu.texture(DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
+        frontDepth = gpu.texture(FRONT_DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
+        secondDepth = gpu.texture(SECOND_DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
     }
 
     private void free() {
         color.close();
         depth.close();
+        frontDepth.close();
+        secondDepth.close();
         if (opaqueDepth != null) {
             opaqueDepth.close();
             opaqueDepth = null;

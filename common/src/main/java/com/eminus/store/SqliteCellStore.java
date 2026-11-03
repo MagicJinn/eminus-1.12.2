@@ -86,7 +86,7 @@ public final class SqliteCellStore implements CellStore {
         Connection connection = null;
         try {
             connection = source.getConnection();
-            StoreSchema.prepare(connection, file, lowestStoredLevel);
+            StoreSchema.prepare(connection, file);
             try (Statement statement = connection.createStatement()) {
                 statement.execute(CREATE_META);
                 statement.execute(CREATE_BEAMS);

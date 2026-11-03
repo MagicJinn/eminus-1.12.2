@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.eminus.cell.FaceMask;
+import com.eminus.cell.StateLayers;
 import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelMetadata;
 
@@ -36,6 +37,7 @@ final class FakeModels implements MeshModels {
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final Map<Integer, Integer> fluidKinds = new HashMap<>();
+    private final Set<Integer> waters = new HashSet<>();
     private final Map<Integer, Float> fluidHeights = new HashMap<>();
     private final Set<Integer> solids = new HashSet<>();
     private final Map<Integer, Integer> shades = new HashMap<>();
@@ -45,6 +47,8 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
     private final Set<List<Integer>> skipped = new HashSet<>();
+    private final Set<List<Integer>> overlaid = new HashSet<>();
+    private final Map<Integer, Integer> layers = new HashMap<>();
 
     private int requests;
     private int nextDerived = FIRST_DERIVED_MODEL;
@@ -99,9 +103,22 @@ final class FakeModels implements MeshModels {
         fluidHeights.put(stateId, height);
     }
 
+    void water(int stateId, float height) {
+        holds(stateId, 0, height);
+        waters.add(stateId);
+    }
+
+    void layer(int stateId, int blocks) {
+        layers.put(stateId, blocks);
+    }
+
     void skipBetween(int stateId, int facingStateId) {
         skipped.add(List.of(stateId, facingStateId));
         skipped.add(List.of(facingStateId, stateId));
+    }
+
+    void overlayAgainst(int stateId, int facingStateId) {
+        overlaid.add(List.of(stateId, facingStateId));
     }
 
     void shadeAs(int stateId, int shade) {
@@ -245,6 +262,11 @@ final class FakeModels implements MeshModels {
     }
 
     @Override
+    public boolean overlaysFluid(int stateId, int facingStateId) {
+        return overlaid.contains(List.of(stateId, facingStateId));
+    }
+
+    @Override
     public int tintRow(int modelId) {
         return tintRows.getOrDefault(modelId, BiomeColors.NO_ROW);
     }
@@ -272,8 +294,18 @@ final class FakeModels implements MeshModels {
     }
 
     @Override
+    public boolean water(int stateId) {
+        return waters.contains(stateId);
+    }
+
+    @Override
     public float fluidHeight(int stateId) {
         return fluidHeights.getOrDefault(stateId, 0.0F);
+    }
+
+    @Override
+    public int layerBlocks(int stateId) {
+        return layers.getOrDefault(stateId, StateLayers.NOT_LAYERED);
     }
 
     @Override

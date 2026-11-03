@@ -1,11 +1,16 @@
 package com.eminus.client.mesh;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.cell.CellKey;
+import com.eminus.cell.StateLayers;
+import com.eminus.cell.StateTable;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
@@ -17,6 +22,7 @@ import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
 
 import org.jspecify.annotations.Nullable;
 
@@ -32,6 +38,7 @@ public final class MeshReading {
     public static final int FIRST_GROUP = 6;
 
     private static final int TIMEOUT_SECONDS = 60;
+    private static final String LEGEND_PREFIX = "# m";
 
     public static @Nullable CompletableFuture<long[]> start(int level, int blockX, int blockY, int blockZ) {
         Minecraft client = Minecraft.getInstance();
@@ -46,18 +53,57 @@ public final class MeshReading {
         ClientBakery baking = ClientBakery.start(client);
 
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
-                .thenApply(meshes -> write(CellMeshing.meshOf(meshes, key), MeshWiring.models(runtime, baking), file))
+                .thenApply(meshes -> write(CellMeshing.meshOf(meshes, key), MeshWiring.models(runtime, baking),
+                        runtime.states(), file))
                 .whenComplete((row, failure) -> baking.stop());
     }
 
-    private static long[] write(CellMesh mesh, MeshModels models, Path file) {
+    private static long[] write(CellMesh mesh, MeshModels models, StateTable states, Path file) {
         try {
             ObjWriter.write(mesh, models, file);
+            legend(models, states, file);
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
 
         return row(mesh);
+    }
+
+    private static void legend(MeshModels models, StateTable states, Path file) throws IOException {
+        try (BufferedWriter out = Files.newBufferedWriter(file, StandardOpenOption.APPEND)) {
+            for (int stateId = 0; stateId < states.size(); stateId++) {
+                int block = models.modelId(stateId, MeshReading::notWaited);
+                if (block == MeshModels.MISSING || block == MeshModels.POSITIONAL) {
+                    continue;
+                }
+
+                String name = name(states, stateId);
+                entry(out, block, "block", name);
+                entry(out, models.opaqueModelId(block), "opaque", name);
+                entry(out, models.submergedModelId(block), "submerged", name);
+                int fluid = models.fluidModelId(stateId, MeshReading::notWaited);
+                if (fluid != MeshModels.MISSING && fluid != MeshModels.NO_FLUID) {
+                    entry(out, fluid, "fluid", name);
+                    entry(out, models.submergedModelId(fluid), "fluid-submerged", name);
+                }
+            }
+        }
+    }
+
+    private static String name(StateTable states, int stateId) {
+        String block = BlockStateParser.serialize(states.state(stateId));
+        int layer = states.layerBlocks(stateId);
+        return layer == StateLayers.NOT_LAYERED ? block
+                : block + " over " + BlockStateParser.serialize(states.state(states.layerFluid(stateId)))
+                        + " blocks=" + layer;
+    }
+
+    private static void notWaited() {
+    }
+
+    private static void entry(BufferedWriter out, int modelId, String role, String name) throws IOException {
+        out.write(LEGEND_PREFIX + modelId + " " + role + " " + name);
+        out.newLine();
     }
 
     private static long[] row(CellMesh mesh) {

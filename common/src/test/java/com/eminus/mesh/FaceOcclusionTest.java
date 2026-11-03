@@ -193,7 +193,7 @@ class FaceOcclusionTest {
             models.shadeAs(id, StateShade.of(palette.get(id)));
         }
 
-        return new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.OWN_SIDE)
+        return new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.OWN_SIDE, false)
                 .face(face, center.getX(), center.getY(), center.getZ(), world.get(center), ModelMetadata.SMOOTH,
                         NO_INSET);
     }
@@ -248,7 +248,7 @@ class FaceOcclusionTest {
         }
 
         int stateId = world.get(center);
-        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.VANILLA)
+        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.VANILLA, false)
                 .face(face, center.getX(), center.getY(), center.getZ(), stateId, ModelMetadata.SMOOTH,
                         face == Direction.UP ? inset : NO_INSET);
 

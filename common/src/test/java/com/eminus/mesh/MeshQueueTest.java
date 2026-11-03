@@ -93,6 +93,32 @@ class MeshQueueTest {
     }
 
     @Test
+    void aRebuildOfADrawnCellWaitsBehindAFillWhateverItsDeadline() {
+        MeshQueue queue = new MeshQueue();
+        MeshTask fill = queuedAt(CellKey.pack(0, 4, 0, 0), SMALL, true, 0L);
+        MeshTask rebuild = queuedAt(CellKey.pack(1, 1, 0, 0), LARGE, false, 1_000_000L);
+
+        queue.add(rebuild);
+        queue.add(fill);
+
+        assertEquals(fill, queue.poll());
+        assertEquals(rebuild, queue.poll());
+    }
+
+    @Test
+    void anInViewRebuildStillRunsBeforeAnOutOfViewFill() {
+        MeshQueue queue = new MeshQueue();
+        MeshTask outOfViewFill = queuedAt(CellKey.pack(0, 4, 0, 0), -SMALL, true, 0L);
+        MeshTask inViewRebuild = queuedAt(CellKey.pack(1, 1, 0, 0), SMALL, false, 1_000_000L);
+
+        queue.add(outOfViewFill);
+        queue.add(inViewRebuild);
+
+        assertEquals(inViewRebuild, queue.poll());
+        assertEquals(outOfViewFill, queue.poll());
+    }
+
+    @Test
     void anEmptyQueueAnswersWithNothingAndKeepsItsSizeStraight() {
         MeshQueue queue = new MeshQueue();
         assertNull(queue.poll());
@@ -106,10 +132,14 @@ class MeshQueueTest {
     }
 
     private static MeshTask task(long key, float priority) {
-        return MeshTask.carrying(key, null, 0, MeshTask.NO_REQUEST, priority);
+        return MeshTask.carrying(key, null, 0, MeshTask.NO_REQUEST, priority, true);
     }
 
     private static MeshTask queuedAt(long key, float priority, long queued) {
-        return new MeshTask(key, false, null, 0, MeshTask.NO_REQUEST, priority, queued);
+        return queuedAt(key, priority, true, queued);
+    }
+
+    private static MeshTask queuedAt(long key, float priority, boolean fills, long queued) {
+        return new MeshTask(key, false, null, 0, MeshTask.NO_REQUEST, priority, fills, queued);
     }
 }

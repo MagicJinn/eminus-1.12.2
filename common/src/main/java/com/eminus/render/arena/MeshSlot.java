@@ -4,6 +4,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.OcclusionWord;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record MeshSlot(long key, int segment, int quads, int occlusion, int colors, int[] groupStart,
@@ -31,6 +32,10 @@ public record MeshSlot(long key, int segment, int quads, int occlusion, int colo
 
     public boolean occluded() {
         return occlusion > 0;
+    }
+
+    public boolean innerOccluded() {
+        return occlusion > OcclusionWord.slots(quads);
     }
 
     public int baseQuad() {
