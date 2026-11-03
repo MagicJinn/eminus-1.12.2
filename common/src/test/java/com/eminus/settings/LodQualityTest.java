@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class LodQualityTest {
-    private static final LodQuality CUSTOM = new LodQuality(2, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.EVERY_LEVEL);
+    private static final LodQuality CUSTOM = new LodQuality(2, LeafMode.SEE_THROUGH, GrassAndFlowers.FULL, false, CornerOcclusion.EVERY_LEVEL);
 
     @Test
     void ultraDrawsSeeThroughLeaves() {
@@ -51,9 +51,14 @@ class LodQualityTest {
     }
 
     @Test
-    void ultraAloneDrawsBlades() {
+    void ultraDrawsFullGrassAndFlowersHighAndMediumSimplifiedAndLowNone() {
         for (LodChoice choice : presets()) {
-            assertEquals(choice == LodChoice.ULTRA, preset(choice).drawsBlades(), choice.key());
+            GrassAndFlowers expected = switch (choice) {
+                case ULTRA -> GrassAndFlowers.FULL;
+                case LOW -> GrassAndFlowers.OFF;
+                default -> GrassAndFlowers.SIMPLIFIED;
+            };
+            assertEquals(expected, preset(choice).grassAndFlowers(), choice.key());
         }
     }
 
@@ -136,7 +141,7 @@ class LodQualityTest {
         LodQuality seeThroughAlone = preset(LodChoice.HIGH).withLeaves(LeafMode.SEE_THROUGH);
 
         assertTrue(seeThroughAlone.seeThroughLeaves());
-        assertFalse(seeThroughAlone.drawsBlades());
+        assertEquals(GrassAndFlowers.SIMPLIFIED, seeThroughAlone.grassAndFlowers());
         assertEquals(0, seeThroughAlone.atlasFirstMip());
         assertEquals(1, preset(LodChoice.HIGH).withFullTextures(false).atlasFirstMip());
     }
@@ -144,9 +149,9 @@ class LodQualityTest {
     @Test
     void aStoredLevelOutsideTheSliderIsRefused() {
         assertThrows(IllegalArgumentException.class,
-                () -> new LodQuality(LodQuality.MAX_STORED_LEVEL + 1, LeafMode.OPAQUE, false, true, CornerOcclusion.EVERY_LEVEL));
+                () -> new LodQuality(LodQuality.MAX_STORED_LEVEL + 1, LeafMode.OPAQUE, GrassAndFlowers.OFF, true, CornerOcclusion.EVERY_LEVEL));
         assertThrows(IllegalArgumentException.class,
-                () -> new LodQuality(LodQuality.MIN_STORED_LEVEL - 1, LeafMode.OPAQUE, false, true, CornerOcclusion.EVERY_LEVEL));
+                () -> new LodQuality(LodQuality.MIN_STORED_LEVEL - 1, LeafMode.OPAQUE, GrassAndFlowers.OFF, true, CornerOcclusion.EVERY_LEVEL));
     }
 
     private static LodQuality preset(LodChoice choice) {
