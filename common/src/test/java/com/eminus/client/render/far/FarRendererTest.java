@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.DetailDistance;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.LeafMode;
 import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
@@ -42,7 +43,7 @@ class FarRendererTest {
 
     @Test
     void aChangeOfOneLodDetailRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withDrawsBlades(false))));
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withGrassAndFlowers(GrassAndFlowers.OFF))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withLeaves(LeafMode.OPAQUE))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withCornerOcclusion(CornerOcclusion.OFF))));
     }
@@ -75,7 +76,7 @@ class FarRendererTest {
 
     @Test
     void aCustomSetEditedUnderAPresetKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, BUILT.withCustomLod(BUILT.customLod().withDrawsBlades(false))));
+        assertFalse(FarRenderer.recreates(BUILT, BUILT.withCustomLod(BUILT.customLod().withGrassAndFlowers(GrassAndFlowers.OFF))));
     }
 
     @Test

@@ -10,12 +10,13 @@ import com.eminus.model.ModelBakery;
 import com.eminus.model.PackBlocks;
 import com.eminus.model.SpriteTexels;
 import com.eminus.model.port.VariantDraw;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
 
-public record ClientBakery(ModelBakery bakery, BiomeColors colors, boolean seeThroughLeaves, boolean drawsBlades,
-        VariantDraw variantDraw) {
+public record ClientBakery(ModelBakery bakery, BiomeColors colors, boolean seeThroughLeaves,
+        GrassAndFlowers grassAndFlowers, VariantDraw variantDraw) {
     public static ClientBakery start(Minecraft client) {
         return start(client, PackBlocks.NONE);
     }
@@ -32,10 +33,10 @@ public record ClientBakery(ModelBakery bakery, BiomeColors colors, boolean seeTh
         GameModels game = GameModels.of(client, seeThroughLeaves);
         SpriteTexels sprites = new SpriteTexels();
         BiomeColors colors = new BiomeColors(game.biomes());
-        boolean drawsBlades = SettingsService.get().settings().lodQuality().drawsBlades();
+        GrassAndFlowers grassAndFlowers = SettingsService.get().settings().lodQuality().grassAndFlowers();
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
-                new FluidBaker(game.fluids(), sprites), sprites, colors, drawsBlades), packBlocks);
-        return new ClientBakery(bakery, colors, seeThroughLeaves, drawsBlades, game.blocks().variantDraw());
+                new FluidBaker(game.fluids(), sprites), sprites, colors, grassAndFlowers), packBlocks);
+        return new ClientBakery(bakery, colors, seeThroughLeaves, grassAndFlowers, game.blocks().variantDraw());
     }
 
     public MeshOpacity opacity(StateTable states) {
