@@ -7,6 +7,7 @@ import com.eminus.model.ModelIndex;
 import com.eminus.model.ModelSource;
 
 import net.minecraft.core.Direction;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HalfTransparentBlock;
 import net.minecraft.world.level.block.LeavesBlock;
@@ -110,6 +111,11 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     public boolean sameFluid(int stateId, int otherStateId) {
         FluidState fluid = index.fluidHolder(stateId).getFluidState();
         return !fluid.isEmpty() && fluid.getType().isSame(index.fluidHolder(otherStateId).getFluidState().getType());
+    }
+
+    @Override
+    public boolean water(int stateId) {
+        return index.fluidHolder(stateId).getFluidState().is(FluidTags.WATER);
     }
 
     @Override

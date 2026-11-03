@@ -46,6 +46,8 @@ public interface MeshModels {
 
     boolean sameFluid(int stateId, int otherStateId);
 
+    boolean water(int stateId);
+
     float fluidHeight(int stateId);
 
     int layerBlocks(int stateId);

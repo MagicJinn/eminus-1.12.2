@@ -58,7 +58,7 @@ public final class FacePasses {
     private int shape;
 
     public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, CornerRule cornerRule,
-            Runnable whenBaked, Sink sink) {
+            boolean water, Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
@@ -66,7 +66,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule, water);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
@@ -291,7 +291,7 @@ public final class FacePasses {
 
         if (liquid) {
             if (shown(side, occludingFaces(side.facing, side.drawn))) {
-                quads.set(u, v, fluidData(fluidLight(side), sided(drawn, side), shape()), OcclusionWord.NONE);
+                quads.set(u, v, fluidData(fluidLight(side), sided(drawn, side), shape()), fluidOccluded(side));
             }
 
             return;
@@ -311,7 +311,7 @@ public final class FacePasses {
         if (liquid) {
             if (shown(side, FaceMask.NONE)) {
                 quads.set(u, v, fluidData(QuadLight.of(lit, metadata), sided(drawn, side), shape()),
-                        OcclusionWord.NONE);
+                        fluidOccluded(side));
             }
 
             return;
@@ -323,6 +323,10 @@ public final class FacePasses {
     private int occluded(FaceSide side) {
         return occlusion.face(side.towards, x, y, z, stateId, metadata,
                 models.inset(drawn, side.towards.get3DDataValue()));
+    }
+
+    private int fluidOccluded(FaceSide side) {
+        return occlusion.fluid(side.towards, x, y, z, stateId);
     }
 
     private boolean shown(FaceSide side, int facingOccluding) {

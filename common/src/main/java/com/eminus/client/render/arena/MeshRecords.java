@@ -18,6 +18,7 @@ public final class MeshRecords implements AutoCloseable {
     public static final int BYTES = TEXELS * 4 * Integer.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_UINT;
     public static final int UNOCCLUDED_SHIFT = Integer.SIZE - 1;
+    public static final int INNER_OCCLUDED_SHIFT = UNOCCLUDED_SHIFT - 1;
 
     private static final String LABEL = "eminus-mesh-records";
     private static final Set<BufferUsage> USAGE =
@@ -64,7 +65,8 @@ public final class MeshRecords implements AutoCloseable {
     public void write(MeshSlot mesh) {
         gpu.assertRenderThread();
         int segments = ArenaAllocator.segmentsFor(mesh.slots());
-        int quads = mesh.occluded() ? mesh.quads() : mesh.quads() | 1 << UNOCCLUDED_SHIFT;
+        int quads = mesh.quads() | (mesh.occluded() ? 0 : 1 << UNOCCLUDED_SHIFT)
+                | (mesh.innerOccluded() ? 1 << INNER_OCCLUDED_SHIFT : 0);
         scratch.clear();
 
         for (int segment = 0; segment < segments; segment++) {
