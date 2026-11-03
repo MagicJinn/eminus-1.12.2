@@ -28,7 +28,7 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, LodChoice.LOW, new LodQuality(1, LeafMode.SEE_THROUGH, false, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.HIGH, false, true,
+        Settings edited = new Settings(false, LodChoice.LOW, new LodQuality(1, LeafMode.SEE_THROUGH, GrassAndFlowers.OFF, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.HIGH, false, true,
                 ShaderPackLod.DISTANT_HORIZONS, false);
 
         SettingsFile.save(file, edited);
@@ -39,7 +39,7 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, LodChoice.HIGH, new LodQuality(1, LeafMode.SEE_THROUGH, false, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
+        Settings written = new Settings(true, LodChoice.HIGH, new LodQuality(1, LeafMode.SEE_THROUGH, GrassAndFlowers.OFF, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
                 true);
 
         SettingsFile.save(file, written);
@@ -176,7 +176,8 @@ class SettingsFileTest {
     void aCustomSetLoadsBackWithItsFiveDetails() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
         Settings written = Settings.defaults().withLodChoice(LodChoice.CUSTOM)
-                .withCustomLod(new LodQuality(2, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.FINEST_LEVEL));
+                .withCustomLod(new LodQuality(2, LeafMode.SEE_THROUGH, GrassAndFlowers.SIMPLIFIED, false,
+                        CornerOcclusion.FINEST_LEVEL));
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -184,7 +185,7 @@ class SettingsFileTest {
         assertTrue(content.contains("\"lod_quality\": \"custom\""), content);
         assertTrue(content.contains("\"lod_nearest_voxel\": 4"), content);
         assertTrue(content.contains("\"lod_see_through_leaves\": true"), content);
-        assertTrue(content.contains("\"lod_grass_and_flowers\": true"), content);
+        assertTrue(content.contains("\"lod_grass_and_flowers\": \"simplified\""), content);
         assertTrue(content.contains("\"lod_textures\": \"half\""), content);
         assertTrue(content.contains("\"lod_corner_occlusion\": \"finest_level\""), content);
         assertEquals(written, SettingsFile.load(file));
@@ -204,6 +205,34 @@ class SettingsFileTest {
     }
 
     @Test
+    void everyGrassAndFlowersValueLoadsBack() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        for (GrassAndFlowers value : GrassAndFlowers.values()) {
+            Settings written = Settings.defaults().withLodChoice(LodChoice.CUSTOM)
+                    .withCustomLod(Settings.DEFAULT_CUSTOM_LOD.withGrassAndFlowers(value));
+
+            SettingsFile.save(file, written);
+            String content = Files.readString(file, StandardCharsets.UTF_8);
+
+            assertTrue(content.contains("\"lod_grass_and_flowers\": \"" + value.key() + "\""), content);
+            assertEquals(value, SettingsFile.load(file).lodQuality().grassAndFlowers(), value.key());
+        }
+    }
+
+    @Test
+    void theFormerGrassToggleOpensAsFullOrOffAndIsRewritten() throws IOException {
+        Settings drawn = loadJson("{\"lod_quality\": \"custom\", \"lod_grass_and_flowers\": true}");
+        String drawnContent = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+        Settings left = loadJson("{\"lod_quality\": \"custom\", \"lod_grass_and_flowers\": false}");
+        String leftContent = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+
+        assertEquals(GrassAndFlowers.FULL, drawn.customLod().grassAndFlowers());
+        assertTrue(drawnContent.contains("\"lod_grass_and_flowers\": \"full\""), drawnContent);
+        assertEquals(GrassAndFlowers.OFF, left.customLod().grassAndFlowers());
+        assertTrue(leftContent.contains("\"lod_grass_and_flowers\": \"off\""), leftContent);
+    }
+
+    @Test
     void aMalformedCornerOcclusionFallsBackToTheDefaultCustomValue() throws IOException {
         Settings loaded = loadJson("{\"lod_quality\": \"custom\", \"lod_corner_occlusion\": \"sometimes\"}");
 
@@ -214,7 +243,8 @@ class SettingsFileTest {
     void aPresetKeepsTheCustomSet() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
         Settings written = Settings.defaults().withLodChoice(LodChoice.MEDIUM)
-                .withCustomLod(new LodQuality(3, LeafMode.SEE_THROUGH, false, true, CornerOcclusion.EVERY_LEVEL));
+                .withCustomLod(new LodQuality(3, LeafMode.SEE_THROUGH, GrassAndFlowers.OFF, true,
+                        CornerOcclusion.EVERY_LEVEL));
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -231,7 +261,7 @@ class SettingsFileTest {
                   "lod_quality": "custom",
                   "lod_nearest_voxel": 1,
                   "lod_see_through_leaves": false,
-                  "lod_grass_and_flowers": false,
+                  "lod_grass_and_flowers": "simplified",
                   "lod_textures": "full"
                 }
                 """);
@@ -252,7 +282,8 @@ class SettingsFileTest {
                 }
                 """);
 
-        assertEquals(new LodQuality(fallback.storedLevel(), LeafMode.OPAQUE, fallback.drawsBlades(), fallback.fullTextures(), fallback.cornerOcclusion()),
+        assertEquals(new LodQuality(fallback.storedLevel(), LeafMode.OPAQUE, fallback.grassAndFlowers(), fallback.fullTextures(),
+                fallback.cornerOcclusion()),
                 loaded.customLod());
     }
 
