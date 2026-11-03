@@ -126,11 +126,27 @@ class ArenaSizingTest {
         assertTrue(every > finest && finest > withHeadroom(quads, MeshOcclusion.NONE));
     }
 
+    @Test
+    void shadedWaterReservesASecondStreamOnTheLevelsThatHaveOne() {
+        long[] quads = {733L * 3 * 7400, 733L * 2 * 10900, 733L * 11400, 201L * 7200, 50L * 5700};
+
+        for (MeshOcclusion occlusion : new MeshOcclusion[] {MeshOcclusion.EVERY_LEVEL.withWater(true),
+                MeshOcclusion.FINEST_LEVEL.withWater(true), MeshOcclusion.NONE.withWater(true)}) {
+            assertEquals(withHeadroom(quads, occlusion), ArenaSizing.wanted(MEASURED_FAR_CELLS,
+                    DetailDistance.LOW.pixels(), MEASURED_FOCAL_PIXELS, DetailLevel.MIN, occlusion));
+        }
+
+        assertTrue(withHeadroom(quads, MeshOcclusion.FINEST_LEVEL.withWater(true))
+                > withHeadroom(quads, MeshOcclusion.FINEST_LEVEL));
+        assertEquals(withHeadroom(quads, MeshOcclusion.NONE), withHeadroom(quads, MeshOcclusion.NONE.withWater(true)));
+    }
+
     private static long withHeadroom(long[] quadsPerLevel, MeshOcclusion occlusion) {
         long slots = 0L;
         for (int level = DetailLevel.MIN; level < quadsPerLevel.length; level++) {
             long quads = quadsPerLevel[level];
-            slots += occlusion.at(level) ? quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT) : quads;
+            long words = Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
+            slots += quads + (occlusion.at(level) ? words : 0) + (occlusion.water(level) ? words : 0);
         }
 
         return Math.ceilDiv(slots * Long.BYTES * WHOLE_PERCENT * WHOLE_PERCENT, HIGH_WATER_PERCENT * FILL_PERCENT);

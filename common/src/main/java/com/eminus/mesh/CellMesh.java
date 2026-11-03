@@ -73,7 +73,7 @@ public record CellMesh(long key, int occupancy, long[] quads, long[] occlusion, 
     }
 
     public int occlusion(int index) {
-        return OcclusionWord.unpack(occlusion, index);
+        return OcclusionWord.unpack(occlusion, quads.length, index);
     }
 
     public int color(long quad) {

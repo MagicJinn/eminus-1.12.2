@@ -29,12 +29,13 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         this.models = models;
     }
 
-    public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, CornerRule corners,
+    public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, MeshOcclusion occlusion,
             Runnable whenBaked) {
         level = CellKey.level(key);
         coarse = level > DetailLevel.MIN;
-        FacePasses passes = new FacePasses(scratch, opacity, models, level, corners, whenBaked, this);
-        BladePass blades = new BladePass(scratch, models, level, corners, whenBaked);
+        FacePasses passes = new FacePasses(scratch, opacity, models, level, occlusion.corners(level),
+                occlusion.water(level), whenBaked, this);
+        BladePass blades = new BladePass(scratch, models, level, occlusion.corners(level), whenBaked);
 
         if (!passes.run() || !blades.run()) {
             scratch.reset();
