@@ -1,10 +1,12 @@
 package com.eminus.mesh;
 
+import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 
 public final class BladePass {
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
@@ -13,14 +15,23 @@ public final class BladePass {
 
     private final MeshScratch scratch;
     private final MeshModels models;
+    private final MeshBlades blades;
     private final Runnable whenBaked;
+    private final int originX;
+    private final int originY;
+    private final int originZ;
     private final FaceOcclusion occlusion;
 
-    public BladePass(MeshScratch scratch, MeshModels models, int level, CornerRule corners, Runnable whenBaked) {
+    public BladePass(MeshScratch scratch, MeshModels models, long key, CornerRule corners, MeshBlades blades,
+            Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
+        this.blades = blades;
         this.whenBaked = whenBaked;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level, corners, false);
+        originX = CellKey.x(key) * SIDE;
+        originY = CellKey.y(key) * SIDE;
+        originZ = CellKey.z(key) * SIDE;
+        occlusion = new FaceOcclusion(scratch.voxels(), models, CellKey.level(key), corners, false);
     }
 
     public boolean run() {
@@ -73,9 +84,17 @@ public final class BladePass {
         int group = QuadGroups.ofBlade(metadata);
         int word = occlusion.blade(x, y, z, metadata);
 
-        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+        boolean one = blades == MeshBlades.ONE;
+        int first = one ? diagonal(originX + x, originY + y, originZ + z) : 0;
+        int end = one ? first + 1 : Quad.BLADE_COUNT;
+        for (int blade = first; blade < end; blade++) {
             scratch.buffer().add(group, Quad.of(data, Quad.bladeFace(blade), x, y, z, ONE_VOXEL, ONE_VOXEL), word);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    static int diagonal(int x, int y, int z) {
+        return (int) (Mth.getSeed(x, y, z) & 1L);
     }
 
     private void faces(long entry, int metadata, int modelId, int x, int y, int z) {

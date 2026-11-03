@@ -38,18 +38,21 @@ public final class SettingsFile {
     private static final String LOD_QUALITY_COMMENT = """
             LOD quality: ultra, high, medium, low or custom. Every preset starts LOD at
             1 block per voxel and differs by its details alone: ultra draws see-through
-            leaves, grass and flowers; high draws leaves opaque and no grass or flowers;
-            medium is high with textures at half resolution; low is medium with no
-            corner darkening. custom takes the five lod_ keys below it, which the Custom
-            LOD Quality screen sets.""";
+            leaves and full grass and flowers; high draws leaves opaque and grass and
+            flowers simplified; medium is high with textures at half resolution; low is
+            medium with no grass, flowers or corner darkening. custom takes the five
+            lod_ keys below it, which the Custom LOD Quality screen sets.""";
 
     private static final String LOD_CUSTOM_COMMENT = """
             Act under custom alone, and stay under a preset so custom comes back as it
             was. lod_nearest_voxel: the blocks one voxel covers at LOD's nearest edge,
             1, 2, 4 or 8. lod_see_through_leaves: whether leaves keep their holes,
-            whatever the game's See-Through Leaves says. lod_grass_and_flowers: whether
-            grass, ferns, flowers and saplings are drawn. lod_textures: full keeps 16 by
-            16 texels per face, half keeps 8 by 8. lod_corner_occlusion: where the game's
+            whatever the game's See-Through Leaves says. lod_grass_and_flowers: full
+            draws grass, ferns, flowers and saplings with petals at their own heights,
+            simplified draws each of them as one plane instead of two and petals flat at
+            one height, off draws none of them.
+            lod_textures: full keeps 16 by 16 texels per face, half keeps 8 by 8.
+            lod_corner_occlusion: where the game's
             Smooth Lighting darkens the corners blocks meet in, every_level darkens them
             at every LOD level, finest_level at the finest level alone, so a brightness
             step shows where it meets the next level, and off at none.""";
@@ -132,7 +135,7 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
-        if (holdsStoredLevelOnly(json) || holdsFormerMinimal(json)) {
+        if (holdsStoredLevelOnly(json) || holdsFormerMinimal(json) || holdsFormerGrassToggle(json)) {
             save(file, loaded);
         }
 
@@ -152,7 +155,7 @@ public final class SettingsFile {
                 LOD_CUSTOM_COMMENT));
         entries.add(entry(LOD_SEE_THROUGH_LEAVES_KEY, new JsonPrimitive(custom.leaves() == LeafMode.SEE_THROUGH),
                 null));
-        entries.add(entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.drawsBlades()), null));
+        entries.add(entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.grassAndFlowers().key()), null));
         entries.add(entry(LOD_TEXTURES_KEY,
                 new JsonPrimitive(custom.fullTextures() ? TEXTURES_FULL : TEXTURES_HALF), null));
         entries.add(entry(LOD_CORNER_OCCLUSION_KEY, new JsonPrimitive(custom.cornerOcclusion().key()), null));
@@ -235,7 +238,7 @@ public final class SettingsFile {
         return new LodQuality(
                 nearestVoxelLevel(json, fallback.storedLevel()),
                 LeafMode.of(bool(json, LOD_SEE_THROUGH_LEAVES_KEY, fallback.leaves() == LeafMode.SEE_THROUGH)),
-                bool(json, LOD_GRASS_AND_FLOWERS_KEY, fallback.drawsBlades()),
+                grassAndFlowers(json, fallback.grassAndFlowers()),
                 keyed(json, LOD_TEXTURES_KEY, fallback.fullTextures(),
                         key -> named(key, TEXTURES_FULL, TEXTURES_HALF)),
                 keyed(json, LOD_CORNER_OCCLUSION_KEY, fallback.cornerOcclusion(), CornerOcclusion::fromKey));
@@ -249,6 +252,19 @@ public final class SettingsFile {
         JsonElement value = json.get(LOD_QUALITY_KEY);
         return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
                 && FORMER_MINIMAL_KEY.equals(value.getAsString());
+    }
+
+    private static GrassAndFlowers grassAndFlowers(JsonObject json, GrassAndFlowers fallback) {
+        if (holdsFormerGrassToggle(json)) {
+            return GrassAndFlowers.of(json.get(LOD_GRASS_AND_FLOWERS_KEY).getAsBoolean());
+        }
+
+        return keyed(json, LOD_GRASS_AND_FLOWERS_KEY, fallback, GrassAndFlowers::fromKey);
+    }
+
+    private static boolean holdsFormerGrassToggle(JsonObject json) {
+        JsonElement value = json.get(LOD_GRASS_AND_FLOWERS_KEY);
+        return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean();
     }
 
     private static boolean holdsCustomLod(JsonObject json) {

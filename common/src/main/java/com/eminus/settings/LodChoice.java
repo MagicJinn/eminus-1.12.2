@@ -3,11 +3,11 @@ package com.eminus.settings;
 import java.util.Optional;
 
 public enum LodChoice {
-    ULTRA("ultra", true, LeafMode.SEE_THROUGH, true, true, CornerOcclusion.FINEST_LEVEL),
-    HIGH("high", true, LeafMode.OPAQUE, false, true, CornerOcclusion.FINEST_LEVEL),
-    MEDIUM("medium", true, LeafMode.OPAQUE, false, false, CornerOcclusion.FINEST_LEVEL),
-    LOW("low", true, LeafMode.OPAQUE, false, false, CornerOcclusion.OFF),
-    CUSTOM("custom", false, LeafMode.OPAQUE, false, false, CornerOcclusion.OFF);
+    ULTRA("ultra", true, LeafMode.SEE_THROUGH, GrassAndFlowers.FULL, true, CornerOcclusion.FINEST_LEVEL),
+    HIGH("high", true, LeafMode.OPAQUE, GrassAndFlowers.SIMPLIFIED, true, CornerOcclusion.FINEST_LEVEL),
+    MEDIUM("medium", true, LeafMode.OPAQUE, GrassAndFlowers.SIMPLIFIED, false, CornerOcclusion.FINEST_LEVEL),
+    LOW("low", true, LeafMode.OPAQUE, GrassAndFlowers.OFF, false, CornerOcclusion.OFF),
+    CUSTOM("custom", false, LeafMode.OPAQUE, GrassAndFlowers.OFF, false, CornerOcclusion.OFF);
 
     private static final int PRESET_STORED_LEVEL = LodQuality.MIN_STORED_LEVEL;
     private static final int FORMER_ULTRA_LEVEL = 0;
@@ -16,16 +16,16 @@ public enum LodChoice {
     private final String key;
     private final boolean preset;
     private final LeafMode leaves;
-    private final boolean drawsBlades;
+    private final GrassAndFlowers grassAndFlowers;
     private final boolean fullTextures;
     private final CornerOcclusion cornerOcclusion;
 
-    LodChoice(String key, boolean preset, LeafMode leaves, boolean drawsBlades, boolean fullTextures,
+    LodChoice(String key, boolean preset, LeafMode leaves, GrassAndFlowers grassAndFlowers, boolean fullTextures,
             CornerOcclusion cornerOcclusion) {
         this.key = key;
         this.preset = preset;
         this.leaves = leaves;
-        this.drawsBlades = drawsBlades;
+        this.grassAndFlowers = grassAndFlowers;
         this.fullTextures = fullTextures;
         this.cornerOcclusion = cornerOcclusion;
     }
@@ -36,7 +36,8 @@ public enum LodChoice {
 
     public Optional<LodQuality> presetQuality() {
         return preset
-                ? Optional.of(new LodQuality(PRESET_STORED_LEVEL, leaves, drawsBlades, fullTextures, cornerOcclusion))
+                ? Optional.of(new LodQuality(PRESET_STORED_LEVEL, leaves, grassAndFlowers, fullTextures,
+                        cornerOcclusion))
                 : Optional.empty();
     }
 

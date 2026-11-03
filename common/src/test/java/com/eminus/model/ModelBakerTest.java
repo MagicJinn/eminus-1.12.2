@@ -1,5 +1,6 @@
 package com.eminus.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,10 +9,13 @@ import java.util.List;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.model.port.ModelQuad;
+import com.eminus.settings.GrassAndFlowers;
 
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FlowerBedBlock;
+import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,7 @@ class ModelBakerTest {
     private static final float RAIL_HEIGHT = PIXEL;
     private static final float STEM_SIDE = PIXEL;
     private static final float HALF = 0.5F;
+    private static final int FULL_BED = 4;
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -58,6 +63,27 @@ class ModelBakerTest {
     @Test
     void aCrossIsNoGroundCover() {
         assertFalse(groundCover(Blocks.SHORT_GRASS, List.of(stem(0.0F, 0.0F, 1.0F, 1.0F))));
+    }
+
+    @Test
+    void simplifiedKeepsAFullFlowerBedWhole() {
+        List<List<ModelQuad>> pieces = ModelBaker.pieces(fullPinkPetals(), FlowerBedQuads.bed(),
+                GrassAndFlowers.SIMPLIFIED);
+
+        assertEquals(1, pieces.size());
+        assertEquals(FlowerBedQuads.bed().size(), pieces.getFirst().size());
+    }
+
+    @Test
+    void fullSplitsAFullFlowerBedAsGroundCoverPiecesDo() {
+        List<List<ModelQuad>> pieces = ModelBaker.pieces(fullPinkPetals(), FlowerBedQuads.bed(), GrassAndFlowers.FULL);
+
+        assertEquals(GroundCoverPieces.split(FlowerBedQuads.bed()).size(), pieces.size());
+        assertTrue(pieces.size() > 1);
+    }
+
+    private static BlockState fullPinkPetals() {
+        return Blocks.PINK_PETALS.defaultBlockState().setValue(FlowerBedBlock.AMOUNT, FULL_BED);
     }
 
     private static boolean groundCover(Block block, List<ModelQuad> quads) {

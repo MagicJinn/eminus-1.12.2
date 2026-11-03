@@ -8,6 +8,7 @@ import com.eminus.client.session.ClientSession;
 import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.LodChoice;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.ShaderPackLod;
@@ -106,6 +107,15 @@ public final class SettingsText {
                 new ValueHint(textures(false), HALF)));
     }
 
+    public static Component grassAndFlowersHint() {
+        List<ValueHint> values = new ArrayList<>();
+        for (GrassAndFlowers value : GrassAndFlowers.values()) {
+            values.add(new ValueHint(grassAndFlowers(value), value.key()));
+        }
+
+        return valuesHint(GRASS_AND_FLOWERS_KEY, values);
+    }
+
     public static Component cornerOcclusionHint() {
         List<ValueHint> values = new ArrayList<>();
         for (CornerOcclusion occlusion : CornerOcclusion.values()) {
@@ -177,6 +187,12 @@ public final class SettingsText {
 
     public static Component textures(boolean full) {
         return Component.translatable(TEXTURES_KEY + (full ? TEXTURES_FULL_SUFFIX : TEXTURES_HALF_SUFFIX));
+    }
+
+    public static Component grassAndFlowers(GrassAndFlowers value) {
+        return value == GrassAndFlowers.OFF
+                ? CommonComponents.OPTION_OFF
+                : Component.translatable(GRASS_AND_FLOWERS_KEY + "." + value.key());
     }
 
     public static Component cornerOcclusion(CornerOcclusion occlusion) {

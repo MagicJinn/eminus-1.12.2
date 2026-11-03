@@ -50,6 +50,7 @@ import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.client.session.ClientSession;
 import com.eminus.settings.FarDistance;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
@@ -206,8 +207,8 @@ public final class FarRenderer implements AutoCloseable {
         return baking.seeThroughLeaves();
     }
 
-    public boolean drawsBlades() {
-        return baking.drawsBlades();
+    public GrassAndFlowers grassAndFlowers() {
+        return baking.grassAndFlowers();
     }
 
     public static boolean recreates(Settings built, Settings updated) {

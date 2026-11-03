@@ -16,6 +16,7 @@ import static com.eminus.client.settings.SettingsText.VEGETATION_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.tooltip;
 
 import com.eminus.settings.CornerOcclusion;
+import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.LeafMode;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
@@ -33,7 +34,7 @@ public final class CustomLodScreen extends DraftOptionsScreen {
 
     private final OptionInstance<Integer> nearestVoxel;
     private final OptionInstance<Boolean> leaves;
-    private final OptionInstance<Boolean> grassAndFlowers;
+    private final OptionInstance<GrassAndFlowers> grassAndFlowers;
     private final OptionInstance<Boolean> textures;
     private final OptionInstance<CornerOcclusion> cornerOcclusion;
 
@@ -52,11 +53,14 @@ public final class CustomLodScreen extends DraftOptionsScreen {
                 tooltip(SettingsText.withCost(SettingsText.toggleHint(LEAVES_KEY), OptionCost.LEAVES)),
                 quality.leaves() == LeafMode.SEE_THROUGH,
                 seeThrough -> apply(lod -> lod.withLeaves(LeafMode.of(seeThrough))));
-        this.grassAndFlowers = OptionInstance.createBoolean(GRASS_AND_FLOWERS_KEY,
-                tooltip(SettingsText.withCost(SettingsText.toggleHint(GRASS_AND_FLOWERS_KEY),
-                        OptionCost.GRASS_AND_FLOWERS)),
-                quality.drawsBlades(),
-                drawn -> apply(lod -> lod.withDrawsBlades(drawn)));
+        this.grassAndFlowers = new OptionInstance<>(GRASS_AND_FLOWERS_KEY,
+                tooltip(SettingsText.withCost(SettingsText.grassAndFlowersHint(), OptionCost.GRASS_AND_FLOWERS)),
+                (caption, value) -> SettingsText.grassAndFlowers(value),
+                new OptionInstance.Enum<>(List.of(GrassAndFlowers.values()),
+                        Codec.STRING.xmap(key -> GrassAndFlowers.fromKey(key)
+                                        .orElse(Settings.DEFAULT_CUSTOM_LOD.grassAndFlowers()),
+                                GrassAndFlowers::key)),
+                quality.grassAndFlowers(), value -> apply(lod -> lod.withGrassAndFlowers(value)));
         this.textures = new OptionInstance<>(TEXTURES_KEY,
                 tooltip(SettingsText.withCost(SettingsText.texturesHint(), OptionCost.TEXTURES)),
                 (caption, full) -> SettingsText.textures(full),
