@@ -8,8 +8,9 @@ import com.eminus.model.port.Sprite;
 import org.junit.jupiter.api.Test;
 
 class FaceMipTest {
-    private static final Sprite MEAN = new MipSprite(MipStrategy.MEAN);
-    private static final Sprite CUTOUT = new MipSprite(MipStrategy.CUTOUT);
+    private static final Sprite MEAN = new MipSprite(MipStrategy.MEAN, true);
+    private static final Sprite CUTOUT = new MipSprite(MipStrategy.CUTOUT, true);
+    private static final Sprite UNMIPPED_CUTOUT = new MipSprite(MipStrategy.CUTOUT, false);
 
     @Test
     void aFaceNoSpriteDrewIsMean() {
@@ -18,10 +19,17 @@ class FaceMipTest {
 
     @Test
     void theSpriteCoveringMostTexelsDecidesTheStrategy() {
-        assertEquals(new FaceMip(MipStrategy.CUTOUT), FaceMip.drawnBy(new Sprite[] {MEAN, CUTOUT, null, CUTOUT}));
+        assertEquals(new FaceMip(MipStrategy.CUTOUT, true),
+                FaceMip.drawnBy(new Sprite[] {MEAN, CUTOUT, null, CUTOUT}));
     }
 
-    private record MipSprite(MipStrategy mipStrategy) implements Sprite {
+    @Test
+    void theSpriteCoveringMostTexelsDecidesWhetherTheFaceIsMipped() {
+        assertEquals(new FaceMip(MipStrategy.CUTOUT, false),
+                FaceMip.drawnBy(new Sprite[] {CUTOUT, UNMIPPED_CUTOUT, null, UNMIPPED_CUTOUT}));
+    }
+
+    private record MipSprite(MipStrategy mipStrategy, boolean mipped) implements Sprite {
         @Override
         public int width() {
             return 1;

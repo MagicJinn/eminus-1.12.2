@@ -33,21 +33,22 @@ public final class GameQuads {
         List<BakedQuad> quads(@Nullable Direction side, RandomSource random);
     }
 
-    public static void gather(ReplayRandom random, boolean translucent, boolean smooth, SideQuads sides,
+    @SuppressWarnings("ReferenceEquality")
+    public static void gather(ReplayRandom random, RenderType layer, boolean smooth, SideQuads sides,
             List<? super LayeredQuad> into) {
+        boolean translucent = layer == RenderType.translucent();
+        boolean mipped = layer != RenderType.cutout();
         for (Direction side : SIDES) {
             random.restart();
             for (BakedQuad quad : sides.quads(side, random)) {
-                into.add(new LayeredQuad(quad, translucent, smooth));
+                into.add(new LayeredQuad(quad, translucent, mipped, smooth));
             }
         }
     }
 
-    @SuppressWarnings("ReferenceEquality")
     public static void gatherByBlockLayer(BlockState state, BakedModel model, RandomSource random,
             List<? super LayeredQuad> into) {
-        boolean translucent = ItemBlockRenderTypes.getChunkRenderType(state) == RenderType.translucent();
-        gather(new ReplayRandom(random), translucent, model.useAmbientOcclusion(),
+        gather(new ReplayRandom(random), ItemBlockRenderTypes.getChunkRenderType(state), model.useAmbientOcclusion(),
                 (side, replay) -> model.getQuads(state, side, replay), into);
     }
 
@@ -72,7 +73,7 @@ public final class GameQuads {
             uvs[corner * 2 + 1] = Float.intBitsToFloat(vertices[uv + 1]);
         }
 
-        return new ModelQuad(corners, uvs, new GameSprite(quad.getSprite()), quad.getTintIndex(),
+        return new ModelQuad(corners, uvs, new GameSprite(quad.getSprite(), layered.mipped()), quad.getTintIndex(),
                 layered.translucent(), NO_EMISSION, quad.getDirection(),
                 quad.isShade() ? quad.getDirection() : Direction.UP, layered.smooth());
     }

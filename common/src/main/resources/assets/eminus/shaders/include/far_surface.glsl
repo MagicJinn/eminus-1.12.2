@@ -53,6 +53,17 @@ vec4 eminus_sample(sampler2D source, vec2 uv, vec2 du, vec2 dv, vec2 texel, vec2
     return mix(nearest, rgss, blend);
 }
 
+// The game's cutout layer on this line samples level 0 alone, however far the face.
+vec4 eminus_level_zero_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
+    vec2 cell = vec2(1.0) / float(EminusAtlasCells);
+    vec2 texel = cell / float(EminusAtlasCellSide);
+    vec2 cellLow = vec2(atlasCell) * cell;
+    vec2 uv = cellLow + fract(faceUV) * cell;
+    vec4 color = eminus_level(EminusAtlas, uv, 0.0, texel, cellLow, cell);
+    color.rgb *= mix(vec3(1.0), tint, eminus_level(EminusTintMask, uv, 0.0, texel, cellLow, cell).r);
+    return color;
+}
+
 vec4 eminus_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 cell = vec2(1.0) / float(EminusAtlasCells);
     vec2 texel = cell / float(EminusAtlasCellSide);

@@ -183,6 +183,17 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         return variants.length / VARIANT_WORDS;
     }
 
+    public int unmippedFaces() {
+        int unmipped = FaceMask.NONE;
+        for (int face = 0; face < FACE_COUNT; face++) {
+            if (!mips[face].mipped()) {
+                unmipped |= 1 << face;
+            }
+        }
+
+        return unmipped;
+    }
+
     private static int solidFaces(int[] faces, int metadata, FaceMip[] mips, MipBlend blend) {
         int present = ModelMetadata.present(metadata);
         if (ModelMetadata.has(metadata, ModelMetadata.OPAQUE)) {

@@ -36,6 +36,7 @@ import org.jspecify.annotations.Nullable;
 
 final class FarQuads {
     static final int MAX_SAMPLES = 8;
+    static final float UNMIPPED_ALPHA_CUTOUT = 0.1F;
 
     private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
     private static final Location SHADER = new Location(Eminus.MODID, "core/far_quads");
@@ -99,6 +100,7 @@ final class FarQuads {
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withDefine("ALPHA_CUTOUT", alphaCutout)
+                .withDefine("UNMIPPED_ALPHA_CUTOUT", UNMIPPED_ALPHA_CUTOUT)
                 .withDefine("SHADE_BITS", BakedModel.SHADE_BITS)
                 .withDefine("MAX_SAMPLES", MAX_SAMPLES)
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
@@ -106,7 +108,8 @@ final class FarQuads {
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
                 .withDefine("MODEL_TEXELS", ModelRecords.TEXELS)
                 .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL)
-                .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL);
+                .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL)
+                .withDefine("UNMIPPED_TEXEL", ModelRecords.UNMIPPED_TEXEL);
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);

@@ -9,11 +9,11 @@ import com.eminus.model.port.Sprite;
 
 import org.jspecify.annotations.Nullable;
 
-public record FaceMip(MipStrategy strategy) {
-    public static final FaceMip MEAN = new FaceMip(MipStrategy.MEAN);
+public record FaceMip(MipStrategy strategy, boolean mipped) {
+    public static final FaceMip MEAN = new FaceMip(MipStrategy.MEAN, true);
 
     public static FaceMip of(Sprite sprite) {
-        return new FaceMip(sprite.mipStrategy());
+        return new FaceMip(sprite.mipStrategy(), sprite.mipped());
     }
 
     public static FaceMip[] uniform(FaceMip mip) {

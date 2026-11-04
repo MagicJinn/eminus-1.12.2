@@ -21,7 +21,7 @@ class FaceMipsTest {
     private static final int DRAWN_HALF_GRAY = 0xBABA_BABA;
     private static final int DRAWN_QUARTER_GRAY = 0x0087_8787;
     private static final FaceMip MEAN = FaceMip.MEAN;
-    private static final FaceMip CUTOUT = new FaceMip(MipStrategy.CUTOUT);
+    private static final FaceMip CUTOUT = new FaceMip(MipStrategy.CUTOUT, true);
     private static final MipBlend VANILLA = VanillaMipBlend.BLEND;
 
     @Test

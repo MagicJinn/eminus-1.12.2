@@ -17,6 +17,8 @@ public interface Sprite {
 
     MipStrategy mipStrategy();
 
+    boolean mipped();
+
     default int index(float u, float v) {
         return texel(v, v0(), v1(), height()) * width() + texel(u, u0(), u1(), width());
     }

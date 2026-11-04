@@ -17,11 +17,10 @@ import net.neoforged.neoforge.common.util.TriState;
 
 public final class NeoForgeModels implements LoaderModels {
     @Override
-    @SuppressWarnings("ReferenceEquality")
     public void quads(BlockState state, BakedModel model, RandomSource random, List<? super LayeredQuad> into) {
         ReplayRandom replay = new ReplayRandom(random);
         for (RenderType type : model.getRenderTypes(state, replay, ModelData.EMPTY)) {
-            GameQuads.gather(replay, type == RenderType.translucent(),
+            GameQuads.gather(replay, type,
                     model.useAmbientOcclusion(state, ModelData.EMPTY, type) != TriState.FALSE,
                     (side, sideRandom) -> model.getQuads(state, side, sideRandom, ModelData.EMPTY, type), into);
         }

@@ -20,6 +20,7 @@ in vec3 voxelPoint;
 in vec3 occlusionPoint;
 flat in vec2 occlusionSize;
 flat in uvec2 occlusionWord;
+flat in uint unmipped;
 
 #ifdef NEAR_SECTIONS
 uniform usamplerBuffer EminusNearSections;
@@ -68,9 +69,11 @@ void main() {
         cell = ivec2(slot % EminusAtlasCells, slot / EminusAtlasCells);
     }
 
-    vec4 color = eminus_surface(cell, faceUV, tintColor) * vertexColor;
+    bool levelZero = unmipped != 0u;
+    vec4 color = (levelZero ? eminus_level_zero_surface(cell, faceUV, tintColor)
+            : eminus_surface(cell, faceUV, tintColor)) * vertexColor;
 #ifndef SOLID
-    if (color.a < ALPHA_CUTOUT) {
+    if (color.a < (levelZero ? UNMIPPED_ALPHA_CUTOUT : ALPHA_CUTOUT)) {
         discard;
     }
 #endif

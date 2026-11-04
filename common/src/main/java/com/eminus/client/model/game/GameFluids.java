@@ -11,7 +11,7 @@ public record GameFluids(LoaderModels loader) implements FluidModels {
     @Override
     @SuppressWarnings("ReferenceEquality")
     public FluidModel model(FluidState fluid) {
-        return new FluidModel(new GameSprite(loader.stillSprite(fluid)),
+        return new FluidModel(new GameSprite(loader.stillSprite(fluid), true),
                 ItemBlockRenderTypes.getRenderLayer(fluid) == RenderType.translucent(),
                 new GameFluidTint(loader, fluid), loader.hasOverlay(fluid));
     }

@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.util.FastColor;
 
-record GameSprite(TextureAtlasSprite sprite) implements Sprite {
+record GameSprite(TextureAtlasSprite sprite, boolean mipped) implements Sprite {
     private static final int BASE_MIP_LEVEL = 0;
     private static final int ALPHA_MASK = 0xFF00_0000;
 

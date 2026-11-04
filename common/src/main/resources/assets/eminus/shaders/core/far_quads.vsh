@@ -20,6 +20,7 @@ out vec3 voxelPoint;
 out vec3 occlusionPoint;
 flat out vec2 occlusionSize;
 flat out uvec2 occlusionWord;
+flat out uint unmipped;
 
 #ifdef NEAR_SECTIONS
 out vec3 nearPoint;
@@ -47,6 +48,8 @@ void main() {
     occlusionPoint = vec3(vertex.occlusionPoint, vertex.occlusionInner);
     occlusionSize = vertex.occlusionSize;
     occlusionWord = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
+    uint unmippedFaces = uint(texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + UNMIPPED_TEXEL).z);
+    unmipped = eminus_field(unmippedFaces, vertex.faceSlot, 1);
 
     vec4 color = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
     uint shades = uint(texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + SHADES_TEXEL).y);

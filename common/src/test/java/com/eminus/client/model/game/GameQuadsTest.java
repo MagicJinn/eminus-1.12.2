@@ -11,6 +11,7 @@ import java.util.List;
 import com.eminus.VanillaBootstrap;
 import com.eminus.model.port.ModelQuad;
 
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -38,7 +39,7 @@ class GameQuadsTest {
     void aQuadKeepsItsCornersUvsTintTranslucencyAndFace() {
         BakedQuad game = quad(Direction.EAST, TINT_LAYER);
 
-        ModelQuad quad = GameQuads.of(new LayeredQuad(game, true, true));
+        ModelQuad quad = GameQuads.of(new LayeredQuad(game, true, true, true));
 
         for (int corner = 0; corner < ModelQuad.CORNERS; corner++) {
             float[] position = CORNERS[corner];
@@ -52,12 +53,12 @@ class GameQuadsTest {
         assertTrue(quad.translucent());
         assertEquals(0, quad.emission());
         assertSame(Direction.EAST, quad.face());
-        assertEquals(new GameSprite(null), quad.sprite());
+        assertEquals(new GameSprite(null, true), quad.sprite());
     }
 
     @Test
     void anUntintedQuadOutsideTheTranslucentLayerReadsAsNeither() {
-        ModelQuad quad = GameQuads.of(new LayeredQuad(quad(Direction.UP, ModelQuad.NO_TINT), false, true));
+        ModelQuad quad = GameQuads.of(new LayeredQuad(quad(Direction.UP, ModelQuad.NO_TINT), false, true, true));
 
         assertEquals(ModelQuad.NO_TINT, quad.tintLayer());
         assertFalse(quad.tinted());
@@ -70,7 +71,7 @@ class GameQuadsTest {
         BakedQuad north = quad(Direction.NORTH, ModelQuad.NO_TINT);
         List<LayeredQuad> into = new ArrayList<>();
 
-        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, true, (side, random) -> {
+        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), RenderType.solid(), true, (side, random) -> {
             if (side == null) {
                 return List.of(unculled);
             }
@@ -78,14 +79,29 @@ class GameQuadsTest {
             return side == Direction.NORTH ? List.of(north) : List.of();
         }, into);
 
-        assertEquals(List.of(new LayeredQuad(unculled, false, true), new LayeredQuad(north, false, true)), into);
+        assertEquals(List.of(new LayeredQuad(unculled, false, true, true), new LayeredQuad(north, false, true, true)),
+                into);
+    }
+
+    @Test
+    void aQuadOfTheCutoutLayerIsUnmippedAndOneOfTheTranslucentLayerIsTranslucent() {
+        BakedQuad game = quad(Direction.UP, ModelQuad.NO_TINT);
+        List<LayeredQuad> into = new ArrayList<>();
+
+        for (RenderType layer : List.of(RenderType.cutout(), RenderType.cutoutMipped(), RenderType.translucent())) {
+            GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), layer, true,
+                    (side, random) -> side == null ? List.of(game) : List.of(), into);
+        }
+
+        assertEquals(List.of(new LayeredQuad(game, false, false, true), new LayeredQuad(game, false, true, true),
+                new LayeredQuad(game, true, true, true)), into);
     }
 
     @Test
     void everySideDrawsFromTheSeedTheCallerSet() {
         List<Long> draws = new ArrayList<>();
 
-        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, true, (side, random) -> {
+        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), RenderType.solid(), true, (side, random) -> {
             draws.add(random.nextLong());
             return List.of();
         }, new ArrayList<>());
