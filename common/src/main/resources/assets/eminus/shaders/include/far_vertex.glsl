@@ -170,6 +170,73 @@ bool eminus_front_only(int flags, int face) {
 #endif
 }
 
+struct EminusFace {
+    int face;
+    int width;
+    int height;
+    vec3 boundsMin;
+    vec3 boundsMax;
+    vec2 slope;
+    float inset;
+    float drawnBottom;
+    float drawnTop;
+    float lowGap;
+    float highGap;
+    float blocks;
+    bool fluid;
+    bool inward;
+    vec4 surface;
+};
+
+vec3 eminus_face_corner(EminusFace f, vec2 unit, out vec2 extent, out vec2 occlusionPoint, out float occlusionInner) {
+    int normalAxis = eminus_normal_axis(f.face);
+    int widthAxis = f.face < 4 ? 0 : 2;
+    int heightAxis = f.face < 2 ? 2 : 1;
+    bool vertical = heightAxis == 1;
+    extent = vec2(unit.x * float(f.width - 1)
+                      + mix(eminus_axis(f.boundsMin, widthAxis), eminus_axis(f.boundsMax, widthAxis), unit.x),
+                  unit.y * float(f.height - 1)
+                      + mix(eminus_axis(f.boundsMin, heightAxis), eminus_axis(f.boundsMax, heightAxis), unit.y));
+    occlusionPoint = extent * f.blocks;
+    occlusionInner = 0.0;
+    float inset = f.inset + dot(f.slope, extent);
+    float placedHeight = vertical ? unit.y * float(f.height - 1) + mix(f.drawnBottom, f.drawnTop, unit.y) : extent.y;
+    if (f.fluid && f.face != 0) {
+        float surface = eminus_fluid_corner(f.surface, f.inward ? f.face ^ 1 : f.face, unit);
+        if (f.face == 1) {
+            inset = 1.0 - surface;
+            // Sodium lights a water top between its own layer and the one above, by the corner's height.
+            occlusionInner = 1.0 - surface;
+        } else {
+            occlusionPoint.y = unit.y * float(f.height) * f.blocks;
+            extent.y = unit.y * float(f.height - 1) + mix(f.boundsMin.y, surface, unit.y);
+            placedHeight = unit.y * float(f.height - 1)
+                    + mix(f.drawnBottom, eminus_high(surface, f.highGap, f.blocks), unit.y);
+        }
+    }
+
+    float depth = (f.face & 1) == 1 ? 1.0 - inset : inset;
+    if (f.face == 0) {
+        depth = eminus_low(inset, f.lowGap, f.blocks);
+    } else if (f.face == 1) {
+        depth = eminus_high(1.0 - inset, f.highGap, f.blocks);
+    } else if (f.inward) {
+        depth = 1.0 - depth;
+    }
+
+    vec3 corner = eminus_axis_add(vec3(0.0), normalAxis, depth);
+    corner = eminus_axis_add(corner, widthAxis, extent.x);
+    return eminus_axis_add(corner, heightAxis, placedHeight);
+}
+
+bool eminus_corner_behind(EminusFace f, vec3 voxelBase, vec3 planeNormal, vec2 unit) {
+    vec2 extent;
+    vec2 occlusionPoint;
+    float occlusionInner;
+    vec3 corner = voxelBase + eminus_face_corner(f, unit, extent, occlusionPoint, occlusionInner) * f.blocks;
+    return dot(planeNormal, corner) >= 0.0;
+}
+
 EminusQuadVertex eminus_quad_vertex(int vertexId) {
     EminusQuadVertex vertex;
 
@@ -257,7 +324,9 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     float drawnTop = eminus_high(boundsMax.y, highGap, blocks);
     vec3 local = vec3(voxel) + offset;
     vec2 extent;
-    vec3 planeNormal = vec3(0.0);
+    int cellBlocks = VOXELS_PER_SIDE << level;
+    ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + EminusMinBlockY, cellZ * cellBlocks);
+    vertex.culled = false;
 
     if (face >= FIRST_BLADE_FACE) {
         float slide = mix(boundsMin.x, boundsMax.x, unit.x);
@@ -275,40 +344,12 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         int widthAxis = face < 4 ? 0 : 2;
         int heightAxis = face < 2 ? 2 : 1;
         bool vertical = heightAxis == 1;
-        extent = vec2(unit.x * float(width - 1)
-                          + mix(eminus_axis(boundsMin, widthAxis), eminus_axis(boundsMax, widthAxis), unit.x),
-                      unit.y * float(height - 1)
-                          + mix(eminus_axis(boundsMin, heightAxis), eminus_axis(boundsMax, heightAxis), unit.y));
-        vertex.occlusionPoint = extent * blocks;
-        vertex.occlusionSize = vec2(width, height) * blocks;
         vec2 slope = eminus_slope(fifth, sixth, seventh, face);
-        float inset = eminus_inset(first, second, face) + dot(slope, extent);
-        float placedHeight = vertical ? unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y) : extent.y;
-        if (fluid && face != 0) {
-            float surface = eminus_fluid_corner(eminus_fluid_corners(corners, boundsMax.y), inward ? face ^ 1 : face, unit);
-            if (face == 1) {
-                inset = 1.0 - surface;
-                // Sodium lights a water top between its own layer and the one above, by the corner's height.
-                vertex.occlusionInner = 1.0 - surface;
-            } else {
-                vertex.occlusionPoint.y = unit.y * float(height) * blocks;
-                extent.y = unit.y * float(height - 1) + mix(boundsMin.y, surface, unit.y);
-                placedHeight = unit.y * float(height - 1) + mix(drawnBottom, eminus_high(surface, highGap, blocks), unit.y);
-            }
-        }
-
-        float depth = (face & 1) == 1 ? 1.0 - inset : inset;
-        if (face == 0) {
-            depth = eminus_low(inset, lowGap, blocks);
-        } else if (face == 1) {
-            depth = eminus_high(1.0 - inset, highGap, blocks);
-        } else if (inward) {
-            depth = 1.0 - depth;
-        }
-
-        local = eminus_axis_add(local, normalAxis, depth);
-        local = eminus_axis_add(local, widthAxis, extent.x);
-        local = eminus_axis_add(local, heightAxis, placedHeight);
+        EminusFace shape = EminusFace(face, width, height, boundsMin, boundsMax, slope,
+                eminus_inset(first, second, face), drawnBottom, drawnTop, lowGap, highGap, blocks, fluid, inward,
+                fluid ? eminus_fluid_corners(corners, boundsMax.y) : vec4(0.0));
+        local += eminus_face_corner(shape, unit, extent, vertex.occlusionPoint, vertex.occlusionInner);
+        vertex.occlusionSize = vec2(width, height) * blocks;
 
         // The plane's own normal, not the axis: the corners of a sloped face lie at different depths along the axis.
         float depthStep = (face & 1) == 1 ? -1.0 : 1.0;
@@ -319,17 +360,24 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         }
         float placedStep = vertical ? float(height - 1) + drawnTop - drawnBottom : 1.0;
         float extentStep = vertical ? float(height - 1) + boundsMax.y - boundsMin.y : 1.0;
-        planeNormal = eminus_axis_set(vec3(0.0), normalAxis, placedStep);
+        vec3 planeNormal = eminus_axis_set(vec3(0.0), normalAxis, placedStep);
         planeNormal = eminus_axis_add(planeNormal, widthAxis, -depthStep * slope.x * placedStep);
         planeNormal = eminus_axis_add(planeNormal, heightAxis, -depthStep * slope.y * extentStep);
         planeNormal = (face & 1) == 1 ? planeNormal : -planeNormal;
+
+        if (eminus_front_only(flags, face)) {
+            vec3 voxelBase = vec3(origin - EminusCameraBlockPos) + EminusCameraOffset + (vec3(voxel) + offset) * blocks;
+            // One verdict per quad: a corner culled alone stretches the quad toward the cull point across the screen.
+            vertex.culled = eminus_corner_behind(shape, voxelBase, planeNormal, vec2(0.0));
+            if (fluid && face == 1) {
+                vertex.culled = vertex.culled && eminus_corner_behind(shape, voxelBase, planeNormal, vec2(1.0, 0.0))
+                        && eminus_corner_behind(shape, voxelBase, planeNormal, vec2(0.0, 1.0))
+                        && eminus_corner_behind(shape, voxelBase, planeNormal, vec2(1.0));
+            }
+        }
     }
 
-    int cellBlocks = VOXELS_PER_SIDE << level;
-    ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + EminusMinBlockY, cellZ * cellBlocks);
     vertex.position = vec3(origin - EminusCameraBlockPos) + EminusCameraOffset + local * float(1 << level);
-    vertex.culled = face < FIRST_BLADE_FACE && eminus_front_only(flags, face)
-            && dot(planeNormal, vertex.position) >= 0.0;
 
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
