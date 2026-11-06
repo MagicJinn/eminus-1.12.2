@@ -15,6 +15,7 @@ import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Sparse;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.Readback;
 import com.eminus.gpu.buffer.Staging;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.compute.Compute;
@@ -168,6 +169,11 @@ public final class GameGpu implements Gpu {
     @Override
     public Staging staging(String label, int bytes, boolean persistentlyMapped) {
         return GameStaging.create(label, bytes, persistentlyMapped);
+    }
+
+    @Override
+    public Readback readback(String label, int maxBytes) {
+        return GameReadback.create(device, label, maxBytes);
     }
 
     @Override

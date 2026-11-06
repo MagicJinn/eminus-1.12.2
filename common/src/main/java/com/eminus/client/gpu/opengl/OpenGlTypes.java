@@ -26,6 +26,7 @@ final class OpenGlTypes {
             case RG32_UINT -> GL30C.GL_RG32UI;
             case RGBA32_UINT -> GL30C.GL_RGBA32UI;
             case RGBA32_FLOAT -> GL30C.GL_RGBA32F;
+            case R32_FLOAT -> GL30C.GL_R32F;
         };
     }
 
@@ -41,7 +42,7 @@ final class OpenGlTypes {
     static int externalFormat(Format format) {
         return switch (format) {
             case RGBA8_UNORM, RGBA32_FLOAT -> GL11C.GL_RGBA;
-            case R8_UNORM -> GL11C.GL_RED;
+            case R8_UNORM, R32_FLOAT -> GL11C.GL_RED;
             case D32_FLOAT -> GL11C.GL_DEPTH_COMPONENT;
             case R32_UINT -> GL30C.GL_RED_INTEGER;
             case RG32_UINT -> GL30C.GL_RG_INTEGER;
@@ -53,14 +54,14 @@ final class OpenGlTypes {
         return switch (format) {
             case RGBA8_UNORM, R8_UNORM -> GL11C.GL_UNSIGNED_BYTE;
             case R32_UINT, RG32_UINT, RGBA32_UINT -> GL11C.GL_UNSIGNED_INT;
-            case D32_FLOAT, RGBA32_FLOAT -> GL11C.GL_FLOAT;
+            case D32_FLOAT, RGBA32_FLOAT, R32_FLOAT -> GL11C.GL_FLOAT;
         };
     }
 
-    static int unpackAlignment(Format format) {
+    static int pixelAlignment(Format format) {
         return switch (format) {
             case RGBA8_UNORM, R8_UNORM -> BYTE_COMPONENT;
-            case R32_UINT, RG32_UINT, RGBA32_UINT, D32_FLOAT, RGBA32_FLOAT -> WORD_COMPONENT;
+            case R32_UINT, RG32_UINT, RGBA32_UINT, D32_FLOAT, RGBA32_FLOAT, R32_FLOAT -> WORD_COMPONENT;
         };
     }
 
