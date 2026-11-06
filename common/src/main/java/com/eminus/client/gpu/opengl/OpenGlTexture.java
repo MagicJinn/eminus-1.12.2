@@ -74,7 +74,7 @@ final class OpenGlTexture implements Texture {
         GL11C.glPixelStorei(GL11C.GL_UNPACK_ROW_LENGTH, regionWidth);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_PIXELS, PACKED_ROWS);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_ROWS, PACKED_ROWS);
-        GL11C.glPixelStorei(GL11C.GL_UNPACK_ALIGNMENT, OpenGlTypes.unpackAlignment(format));
+        GL11C.glPixelStorei(GL11C.GL_UNPACK_ALIGNMENT, OpenGlTypes.pixelAlignment(format));
         GL11C.glTexSubImage2D(GL11C.GL_TEXTURE_2D, mip, x, y, regionWidth, regionHeight,
                 OpenGlTypes.externalFormat(format), OpenGlTypes.componentType(format), data);
     }

@@ -48,6 +48,7 @@ final class GameTypes {
             case RG32_UINT -> GpuFormat.RG32_UINT;
             case RGBA32_UINT -> GpuFormat.RGBA32_UINT;
             case RGBA32_FLOAT -> GpuFormat.RGBA32_FLOAT;
+            case R32_FLOAT -> GpuFormat.R32_FLOAT;
         };
     }
 
@@ -117,6 +118,7 @@ final class GameTypes {
                 case ATTACHMENT -> GpuTexture.USAGE_RENDER_ATTACHMENT;
                 case SAMPLED -> GpuTexture.USAGE_TEXTURE_BINDING;
                 case COPY_DST -> GpuTexture.USAGE_COPY_DST;
+                case COPY_SRC -> GpuTexture.USAGE_COPY_SRC;
             };
         }
         return flags;

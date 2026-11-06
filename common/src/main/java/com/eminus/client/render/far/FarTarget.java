@@ -18,6 +18,8 @@ public final class FarTarget implements AutoCloseable {
     private static final String SECOND_DEPTH_LABEL = "eminus-far-second-depth";
     public static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
+    private static final Set<TextureUsage> DEPTH_USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED,
+            TextureUsage.COPY_SRC);
     private static final int MIPS = 1;
 
     private final Gpu gpu;
@@ -88,7 +90,7 @@ public final class FarTarget implements AutoCloseable {
 
     private void allocate(int width, int height) {
         color = gpu.texture(COLOR_LABEL, USAGE, COLOR_FORMAT, width, height, MIPS);
-        depth = gpu.texture(DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
+        depth = gpu.texture(DEPTH_LABEL, DEPTH_USAGE, depthFormat, width, height, MIPS);
         frontDepth = gpu.texture(FRONT_DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
         secondDepth = gpu.texture(SECOND_DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
     }

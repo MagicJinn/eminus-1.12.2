@@ -1,5 +1,7 @@
 package com.eminus.client.gpu.opengl;
 
+import java.nio.IntBuffer;
+
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
@@ -31,32 +33,62 @@ final class OpenGlPass implements Pass {
 
     private static final int ONE_TARGET = 1;
 
+    private static final int RECT_INTS = 4;
+    private static final int RECT_X = 0;
+    private static final int RECT_Y = 1;
+    private static final int RECT_WIDTH = 2;
+    private static final int RECT_HEIGHT = 3;
+
     private final OpenGlGpu gpu;
     private final int colorTargets;
+    private final Found found;
     private @Nullable OpenGlPipeline pipeline;
 
-    private OpenGlPass(OpenGlGpu gpu, int colorTargets) {
+    private record Found(int viewportX, int viewportY, int viewportWidth, int viewportHeight, boolean scissored,
+            int scissorX, int scissorY, int scissorWidth, int scissorHeight) {
+        static Found now() {
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer viewport = stack.mallocInt(RECT_INTS);
+                IntBuffer scissor = stack.mallocInt(RECT_INTS);
+                GL11C.glGetIntegerv(GL11C.GL_VIEWPORT, viewport);
+                GL11C.glGetIntegerv(GL11C.GL_SCISSOR_BOX, scissor);
+                return new Found(viewport.get(RECT_X), viewport.get(RECT_Y), viewport.get(RECT_WIDTH),
+                        viewport.get(RECT_HEIGHT), GL11C.glIsEnabled(GL11C.GL_SCISSOR_TEST), scissor.get(RECT_X),
+                        scissor.get(RECT_Y), scissor.get(RECT_WIDTH), scissor.get(RECT_HEIGHT));
+            }
+        }
+
+        void restore() {
+            GameHandles.viewport(viewportX, viewportY, viewportWidth, viewportHeight);
+            GameHandles.scissor(scissored, scissorX, scissorY, scissorWidth, scissorHeight);
+        }
+    }
+
+    private OpenGlPass(OpenGlGpu gpu, int colorTargets, Found found) {
         this.gpu = gpu;
         this.colorTargets = colorTargets;
+        this.found = found;
     }
 
     static OpenGlPass openForeign(OpenGlGpu gpu, int framebuffer, int width, int height, int colorTargets) {
+        Found found = Found.now();
         GameHandles.bindFramebuffer(framebuffer);
         GameHandles.viewport(0, 0, width, height);
         GameHandles.scissor(0, 0, width, height);
-        return new OpenGlPass(gpu, colorTargets);
+        return new OpenGlPass(gpu, colorTargets, found);
     }
 
     static OpenGlPass open(OpenGlGpu gpu, PassSpec spec) {
         OpenGlTexture color = (OpenGlTexture) spec.color();
         OpenGlTexture depth = (OpenGlTexture) spec.depth();
         int framebuffer = gpu.framebuffer(color, depth);
+        Found found = Found.now();
         GameHandles.bindFramebuffer(framebuffer);
         GameHandles.viewport(0, 0, color.width(), color.height());
         GameHandles.scissor(0, 0, color.width(), color.height());
         GL20C.glDrawBuffers(GL30C.GL_COLOR_ATTACHMENT0);
         clear(spec, depth);
-        return new OpenGlPass(gpu, ONE_TARGET);
+        return new OpenGlPass(gpu, ONE_TARGET, found);
     }
 
     private static void clear(PassSpec spec, @Nullable OpenGlTexture depth) {
@@ -167,5 +199,6 @@ final class OpenGlPass implements Pass {
         GL30C.glBindVertexArray(UNBOUND);
         GL20C.glUseProgram(UNBOUND);
         GameHandles.bindFramebuffer(UNBOUND);
+        found.restore();
     }
 }
