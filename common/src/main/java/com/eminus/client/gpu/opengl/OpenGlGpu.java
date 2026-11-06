@@ -24,6 +24,7 @@ import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.Sparse;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.Readback;
 import com.eminus.gpu.buffer.Staging;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.compute.Compute;
@@ -260,6 +261,11 @@ public final class OpenGlGpu implements Gpu, Foreign {
     @Override
     public Staging staging(String label, int bytes, boolean persistentlyMapped) {
         return OpenGlStaging.create(objects, label, bytes, persistentlyMapped && capabilities.persistentMapping());
+    }
+
+    @Override
+    public Readback readback(String label, int maxBytes) {
+        return OpenGlReadback.create(objects, label, maxBytes);
     }
 
     @Override
