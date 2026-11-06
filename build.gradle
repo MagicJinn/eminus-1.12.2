@@ -43,6 +43,60 @@ def withBuildSuffix = { baseVersion -> buildSuffix ? "${baseVersion}-${buildSuff
 def neoforgeJar = project(':neoforge').tasks.named('jar', Jar)
 def fabricJar = project(':fabric').tasks.named('jar', Jar)
 
+def fabricNestedDir = 'META-INF/jars/'
+def sqliteJdbcFileName = "sqlite-jdbc-${sqlite_jdbc_version}.jar"
+def sqliteJdbcEntry = fabricNestedDir + sqliteJdbcFileName
+def sqliteNativeRoot = 'org/sqlite/native/'
+def droppedSqliteNatives = ['Linux/x86', 'Linux-Musl/x86', 'FreeBSD/x86', 'Windows/x86', 'Windows/armv7'] as Set
+def keptSqliteNatives = ['Linux/x86_64', 'Linux/aarch64', 'Linux/arm', 'Linux/armv6', 'Linux/armv7', 'Linux/ppc64',
+        'Linux/riscv64', 'Linux-Musl/x86_64', 'Linux-Musl/aarch64', 'FreeBSD/x86_64', 'FreeBSD/aarch64', 'Mac/x86_64',
+        'Mac/aarch64', 'Windows/x86_64', 'Windows/aarch64'] as Set
+
+// The output keeps the nested jar's file name: both loaders find it by that path alone.
+def slimSqliteJdbc = tasks.register('slimSqliteJdbc') {
+    def source = fabricJar.flatMap { it.archiveFile }
+    def target = layout.buildDirectory.file("slim-sqlite-jdbc/${sqliteJdbcFileName}")
+    inputs.file(source)
+    inputs.property('droppedSqliteNatives', droppedSqliteNatives)
+    inputs.property('keptSqliteNatives', keptSqliteNatives)
+    outputs.file(target)
+
+    doLast {
+        def nativeOf = { String name ->
+            def parts = name.substring(sqliteNativeRoot.length()).split('/')
+            parts.length >= 2 ? "${parts[0]}/${parts[1]}".toString() : null
+        }
+        def unknown = [] as Set
+        new java.util.zip.ZipFile(source.get().asFile).withCloseable { outer ->
+            def nested = outer.getEntry(sqliteJdbcEntry)
+            if (nested == null) {
+                throw new GradleException("The Fabric build nests no ${sqliteJdbcEntry}")
+            }
+            new java.util.zip.ZipInputStream(outer.getInputStream(nested)).withCloseable { input ->
+                new java.util.zip.ZipOutputStream(new FileOutputStream(target.get().asFile)).withCloseable { output ->
+                    for (def entry = input.nextEntry; entry != null; entry = input.nextEntry) {
+                        def nativeDir = entry.name.startsWith(sqliteNativeRoot) ? nativeOf(entry.name) : null
+                        if (nativeDir in droppedSqliteNatives) {
+                            continue
+                        }
+                        if (nativeDir != null && !(nativeDir in keptSqliteNatives)) {
+                            unknown << nativeDir
+                        }
+                        def copy = new java.util.zip.ZipEntry(entry.name)
+                        copy.time = entry.time
+                        output.putNextEntry(copy)
+                        output << input
+                        output.closeEntry()
+                    }
+                }
+            }
+        }
+        if (unknown) {
+            throw new GradleException("sqlite-jdbc ${sqlite_jdbc_version} carries natives neither kept nor dropped: ${unknown}")
+        }
+    }
+}
+
 // The one file that ships, for both loaders: 26.x is unobfuscated, so one set of classes serves either, and each loader
 // reads only its own metadata. The manifest is the Fabric build's, whose Fabric-Mixin attributes Fabric Loader reads;
 // shared classes are the NeoForge build's, which are common's own output.
@@ -53,7 +107,6 @@ tasks.register('modJar', Zip) {
 
     def manifestPath = 'META-INF/MANIFEST.MF'
     def jarJarDir = 'META-INF/jarjar/'
-    def fabricNestedDir = 'META-INF/jars/'
     def neoforgeFile = neoforgeJar.flatMap { it.archiveFile }
     def fabricFile = fabricJar.flatMap { it.archiveFile }
     def entriesOf = { jar ->
@@ -85,8 +138,11 @@ tasks.register('modJar', Zip) {
     }
     from(zipTree(fabricFile)) {
         exclude { element ->
-            element.relativePath.pathString != manifestPath
-                    && neoforgeEntries.get().contains(element.relativePath.pathString)
+            def path = element.relativePath.pathString
+            path == sqliteJdbcEntry || (path != manifestPath && neoforgeEntries.get().contains(path))
         }
+    }
+    from(slimSqliteJdbc) {
+        into fabricNestedDir
     }
 }
