@@ -112,6 +112,15 @@ final class GameHandles {
         GlStateManager._scissorBox(x, y, width, height);
     }
 
+    static void scissor(boolean enabled, int x, int y, int width, int height) {
+        GlStateManager._scissorBox(x, y, width, height);
+        if (enabled) {
+            GlStateManager._enableScissorTest();
+        } else {
+            GlStateManager._disableScissorTest();
+        }
+    }
+
     static void colorMask(int index, int mask) {
         GlStateManager._colorMask(index, mask);
     }

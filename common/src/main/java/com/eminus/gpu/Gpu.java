@@ -7,6 +7,7 @@ import java.util.Set;
 
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.Readback;
 import com.eminus.gpu.buffer.Staging;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.compute.Compute;
@@ -51,6 +52,8 @@ public interface Gpu extends AutoCloseable {
     Pass pass(PassSpec spec);
 
     Staging staging(String label, int bytes, boolean persistentlyMapped);
+
+    Readback readback(String label, int maxBytes);
 
     Optional<Compute> compute();
 

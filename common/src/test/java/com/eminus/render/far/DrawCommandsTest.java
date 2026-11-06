@@ -2,6 +2,8 @@ package com.eminus.render.far;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.List;
 
@@ -13,7 +15,8 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
-import com.eminus.render.arena.MeshSlots;
+import com.eminus.render.arena.MeshSlots;
+import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.tree.RenderList;
 
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
@@ -58,6 +61,10 @@ class DrawCommandsTest {
     private static final FrustumIntersection AROUND_THE_CAMERA = xSlab(-NARROW, NARROW);
     private static final FrustumIntersection FAR_EAST = xSlab(AWAY, AWAY + NARROW);
     private static final ShadowCasterVolume EVERY_CASTER = new ShadowCasterVolume();
+    private static final int OCCLUSION_BLOCK = 16;
+    private static final float SHRINK = 1.0E-6F;
+    private static final float NEARER_THAN_EVERYTHING = -1.0F;
+    private static final float FARTHER_THAN_EVERYTHING = 2.0F;
     private static final float RIGHT_ANGLE = (float) Math.toRadians(90.0);
     private static final float CAMERA_NEAR = 0.05F;
     private static final float CAMERA_FAR = 48_000.0F;
@@ -140,7 +147,7 @@ class DrawCommandsTest {
         MeshSlot far = slot(farKey, FAR_SEGMENT);
 
         commands.write(List.of(mesh(key), mesh(farKey)), List.of(), NO_BORDERS,
-                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, AROUND, INSIDE,
+                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, AROUND, null, INSIDE,
                 FAR_ABOVE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
@@ -172,7 +179,7 @@ class DrawCommandsTest {
     void theTranslucentCommandsSitAfterTheOpaqueOnes() {
         MeshSlot held = both(key, SEGMENT);
 
-        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(held), frame, EVERYWHERE, AROUND,
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(held), frame, EVERYWHERE, AROUND, null,
                 INSIDE, INSIDE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
@@ -180,6 +187,23 @@ class DrawCommandsTest {
 
         IntBuffer written = commands.buffer().asIntBuffer();
         assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(2 * COMMAND_INTS + INDEX_COUNT));
+    }
+
+    @Test
+    void aCellTheOcclusionTestHidesLosesItsOpaqueAndTranslucentCommands() {
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(both(key, SEGMENT)), frame,
+                EVERYWHERE, AROUND, occlusion(NEARER_THAN_EVERYTHING), INSIDE, INSIDE, INSIDE);
+
+        assertEquals(0, commands.count());
+    }
+
+    @Test
+    void anOcclusionTestThatHidesNothingKeepsEveryCommand() {
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(both(key, SEGMENT)), frame,
+                EVERYWHERE, AROUND, occlusion(FARTHER_THAN_EVERYTHING), INSIDE, INSIDE, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+        assertEquals(1, commands.translucentCount());
     }
 
     @Test
@@ -199,7 +223,7 @@ class DrawCommandsTest {
     @Test
     void aBorderGroupWithoutItsMarkIsNotDrawn() {
         commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(border(key, SEGMENT)), frame, EVERYWHERE,
-                AROUND, INSIDE, INSIDE, INSIDE);
+                AROUND, null, INSIDE, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
@@ -207,7 +231,7 @@ class DrawCommandsTest {
     @Test
     void aBorderGroupUnderItsMarkBecomesOneOpaqueCommandOverItsOwnQuadRange() {
         commands.write(List.of(mesh(key)), List.of(), wanted -> wanted == key ? EAST_BIT : RenderList.NO_BORDER_FACES,
-                slots(border(key, SEGMENT)), frame, EVERYWHERE, AROUND, INSIDE, INSIDE, INSIDE);
+                slots(border(key, SEGMENT)), frame, EVERYWHERE, AROUND, null, INSIDE, INSIDE, INSIDE);
 
         assertEquals(1, commands.opaqueCount());
         assertEquals(BORDER_QUADS, commands.quads());
@@ -220,7 +244,7 @@ class DrawCommandsTest {
     @Test
     void aMarkedBorderGroupFacingAwayFromTheCameraIsNotDrawn() {
         commands.write(List.of(mesh(key)), List.of(), wanted -> EAST_BIT, slots(border(key, SEGMENT)), frame,
-                EVERYWHERE, AROUND, FAR_BELOW, INSIDE, INSIDE);
+                EVERYWHERE, AROUND, null, FAR_BELOW, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
@@ -228,7 +252,7 @@ class DrawCommandsTest {
     @Test
     void aMeshOutsideTheFrameFrustumAddsNoCommand() {
         commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(both(key, SEGMENT)), frame, FAR_EAST,
-                AROUND, INSIDE, INSIDE, INSIDE);
+                AROUND, null, INSIDE, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
@@ -236,11 +260,11 @@ class DrawCommandsTest {
     @Test
     void theFrameFrustumTestsTheCellFromTheCamera() {
         commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, SEGMENT)), frame, AROUND_THE_CAMERA,
-                AROUND, INSIDE, INSIDE, INSIDE);
+                AROUND, null, INSIDE, INSIDE, INSIDE);
         assertEquals(2, commands.opaqueCount());
 
         commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, SEGMENT)), frame, AROUND_THE_CAMERA,
-                AROUND, FAR_EAST_CAMERA, INSIDE, INSIDE);
+                AROUND, null, FAR_EAST_CAMERA, INSIDE, INSIDE);
         assertEquals(0, commands.count());
     }
 
@@ -334,8 +358,8 @@ class DrawCommandsTest {
         MeshSlot far = solidUp(farKey, FAR_SEGMENT);
 
         commands.write(List.of(mesh(key), mesh(farKey)), List.of(), NO_BORDERS,
-                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, ELSEWHERE, INSIDE,
-                FAR_ABOVE, INSIDE);
+                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, ELSEWHERE, null,
+                INSIDE, FAR_ABOVE, INSIDE);
 
         assertEquals(2, commands.solidCount());
         assertEquals(4, commands.opaqueCount());
@@ -406,13 +430,21 @@ class DrawCommandsTest {
     }
 
     private void write(MeshSlots slots, NearBox near, double cameraY) {
-        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots, frame, EVERYWHERE, near, INSIDE, cameraY,
-                INSIDE);
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots, frame, EVERYWHERE, near, null, INSIDE,
+                cameraY, INSIDE);
     }
 
     private void translucent(MeshSlots slots, MeshSummary... ordered) {
-        commands.write(List.of(), List.of(ordered), NO_BORDERS, slots, frame, EVERYWHERE, AROUND, INSIDE, INSIDE,
+        commands.write(List.of(), List.of(ordered), NO_BORDERS, slots, frame, EVERYWHERE, AROUND, null, INSIDE, INSIDE,
                 INSIDE);
+    }
+
+    private static OcclusionTest occlusion(float texel) {
+        OcclusionTest test = new OcclusionTest(DepthConvention.of(true, false), OCCLUSION_BLOCK);
+        ByteBuffer bytes = ByteBuffer.allocate(Float.BYTES).order(ByteOrder.nativeOrder()).putFloat(texel);
+        test.load(bytes.flip(), 1, 1, OCCLUSION_BLOCK, OCCLUSION_BLOCK, new Matrix4f().scaling(SHRINK), 0.0, 0.0,
+                0.0, 0L);
+        return test;
     }
 
     private static MeshSlots slots(MeshSlot held) {

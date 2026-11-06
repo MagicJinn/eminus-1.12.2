@@ -22,8 +22,9 @@ import com.eminus.render.backend.DepthConvention;
 
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
+import org.jspecify.annotations.Nullable;
 
-public final class OpaquePass {
+public final class OpaquePass implements AutoCloseable {
     public static final float ALPHA_CUTOUT = 0.5F;
 
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_opaque");
@@ -35,11 +36,13 @@ public final class OpaquePass {
     private final Gpu gpu;
     private final Pipeline solid;
     private final Pipeline pipeline;
+    private final OcclusionPyramid pyramid;
 
-    private OpaquePass(Gpu gpu, Pipeline solid, Pipeline pipeline) {
+    private OpaquePass(Gpu gpu, Pipeline solid, Pipeline pipeline, OcclusionPyramid pyramid) {
         this.gpu = gpu;
         this.solid = solid;
         this.pipeline = pipeline;
+        this.pyramid = pyramid;
     }
 
     public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
@@ -48,11 +51,11 @@ public final class OpaquePass {
         return new OpaquePass(gpu,
                 gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
                 gpu.pipeline(target(FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
-                        .withDefine("NEAR_SECTIONS"), depth)));
+                        .withDefine("NEAR_SECTIONS"), depth)), OcclusionPyramid.create(gpu, depth));
     }
 
     public List<Pipeline> pipelines() {
-        return List.of(solid, pipeline);
+        return List.of(solid, pipeline, pyramid.pipeline());
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
@@ -73,6 +76,19 @@ public final class OpaquePass {
                 pass.drawIndexedIndirect(commands, solidCount, drawCount - solidCount);
             }
         }
+    }
+
+    void buildPyramid(FarTarget target) {
+        pyramid.build(target.depth());
+    }
+
+    @Nullable Texture readLevel() {
+        return pyramid.readLevel();
+    }
+
+    @Override
+    public void close() {
+        pyramid.close();
     }
 
     private static PipelineSpec target(PipelineSpec.Builder builder, DepthConvention depth) {

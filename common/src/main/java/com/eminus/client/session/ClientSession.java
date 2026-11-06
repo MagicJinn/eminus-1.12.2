@@ -424,7 +424,7 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         Settings settings = captureRenderedInputs(minecraft);
-        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
+        FarStart start = FarStart.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
                 Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
                 settings, replacedArenaBytes, renderedPackBlocks);
         renderer = start.renderer();

@@ -81,27 +81,29 @@ public final class DrawCommands {
     }
 
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
-            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, NearBox near, double cameraX,
-            double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, null, near, true, cameraX, cameraY, cameraZ);
-        writeTranslucent(translucent, slots, frame, frustum, null, cameraX, cameraY, cameraZ);
+            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, NearBox near,
+            @Nullable OcclusionTest occlusion, double cameraX, double cameraY, double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, null, near, occlusion, true, cameraX, cameraY,
+                cameraZ);
+        writeTranslucent(translucent, slots, frame, frustum, null, occlusion, cameraX, cameraY, cameraZ);
     }
 
     public void writeShadow(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters,
             double cameraX, double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, null, false, cameraX, cameraY, cameraZ);
-        writeTranslucent(translucent, slots, frame, frustum, casters, cameraX, cameraY, cameraZ);
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, null, null, false, cameraX, cameraY,
+                cameraZ);
+        writeTranslucent(translucent, slots, frame, frustum, casters, null, cameraX, cameraY, cameraZ);
     }
 
     private void writeTranslucent(List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
-            FrustumIntersection frustum, @Nullable ShadowCasterVolume casters, double cameraX, double cameraY,
-            double cameraZ) {
+            FrustumIntersection frustum, @Nullable ShadowCasterVolume casters, @Nullable OcclusionTest occlusion,
+            double cameraX, double cameraY, double cameraZ) {
         for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && slot.groupCount(QuadGroups.TRANSLUCENT) > 0
                     && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
-                    && (casters == null || casts(casters))) {
+                    && (casters == null || casts(casters)) && (occlusion == null || !occlusion.hidden(bounds))) {
                 put(slot.baseQuad() + slot.groupStart(QuadGroups.TRANSLUCENT),
                         slot.groupCount(QuadGroups.TRANSLUCENT));
                 translucentCount++;
@@ -111,12 +113,13 @@ public final class DrawCommands {
 
     private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
             CellFrame frame, FrustumIntersection frustum, @Nullable ShadowCasterVolume casters,
-            @Nullable NearBox near, boolean facing, double cameraX, double cameraY, double cameraZ) {
+            @Nullable NearBox near, @Nullable OcclusionTest occlusion, boolean facing, double cameraX, double cameraY,
+            double cameraZ) {
         clear();
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
-                    && (casters == null || casts(casters))) {
+                    && (casters == null || casts(casters)) && (occlusion == null || !occlusion.hidden(bounds))) {
                 writeGroups(slot, borderFaces.get(mesh.key()), near != null && outside(slot.key(), near), facing,
                         cameraX, cameraY, cameraZ);
             }
