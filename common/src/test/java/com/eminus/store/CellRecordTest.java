@@ -1,11 +1,13 @@
 package com.eminus.store;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellKey;
@@ -13,12 +15,18 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class CellRecordTest {
     private static final long STONE = VoxelEntry.pack(17, 4, VoxelEntry.light(0, 0));
     private static final long GRASS = VoxelEntry.pack(9, 4, VoxelEntry.light(15, 0));
     private static final int VERSION_OFFSET = 0;
     private static final int LENGTH_OFFSET = Byte.BYTES;
+    private static final int BIOMES = 64;
+    private static final int LIGHT_LEVELS = 16;
+    private static final int INDEX_STRIDE = 3;
+    private static final byte FLIPPED_BITS = 0x5A;
 
     @Test
     void aBlankCellSurvivesTheRoundTripAtEveryLevel() {
@@ -66,15 +74,58 @@ class CellRecordTest {
         assertTrue(CellRecord.encode(cell).length < DetailLevel.VOXELS_PER_CELL * Short.BYTES);
     }
 
-    @Test
-    void aRecordWrittenUnderStoreFormatThreeStillDecodes() {
-        long key = CellKey.pack(0, 2, 1, -4);
-        Cell cell = Cell.blank(key);
-        cell.set(16, 7, 3, STONE);
-        byte[] record = CellRecord.encode(cell);
-        record[VERSION_OFFSET] = (byte) StoreFormat.BEFORE_LOWEST;
+    @ParameterizedTest
+    @ValueSource(ints = {1, 200, 300, Cell.MAX_PALETTE})
+    void aCellSurvivesTheRoundTripWhateverItsPaletteSize(int paletteSize) {
+        long key = CellKey.pack(0, 1, -1, 2);
+        long[] palette = new long[paletteSize];
+        for (int entry = 0; entry < paletteSize; entry++) {
+            palette[entry] = VoxelEntry.pack(entry + 1, entry % BIOMES, VoxelEntry.light(entry % LIGHT_LEVELS, 0));
+        }
 
-        assertSameCell(cell, CellRecord.decode(key, record));
+        short[] indices = new short[DetailLevel.VOXELS_PER_CELL];
+        for (int voxel = 0; voxel < indices.length; voxel++) {
+            indices[voxel] = (short) ((voxel * INDEX_STRIDE + 1) % paletteSize);
+        }
+
+        Cell cell = Cell.of(key, palette, indices);
+
+        Cell decoded = CellRecord.decode(key, CellRecord.encode(cell));
+
+        assertArrayEquals(cell.copyPalette(), decoded.copyPalette());
+        assertArrayEquals(cell.indices(), decoded.indices());
+        assertEquals(cell.occupancy(), decoded.occupancy());
+    }
+
+    @Test
+    void aNewRecordCarriesTheCurrentRecordVersion() {
+        long key = CellKey.pack(0, 0, 0, 0);
+
+        assertEquals(StoreFormat.RECORD_VERSION, CellRecord.encode(Cell.blank(key))[VERSION_OFFSET]);
+    }
+
+    @Test
+    void aZstdRecordOfStoreFormatThreeStillDecodes() {
+        long key = CellKey.pack(0, 2, 1, -4);
+        Cell few = Cell.blank(key);
+        few.set(16, 7, 3, STONE);
+        few.set(0, 0, 0, GRASS);
+
+        for (Cell cell : List.of(few, distinctPerVoxel(key))) {
+            byte[] record = LegacyRecords.zstd(cell);
+
+            assertEquals(StoreFormat.ZSTD_RECORD_VERSION, record[VERSION_OFFSET]);
+            assertSameCell(cell, CellRecord.decode(key, record));
+        }
+    }
+
+    @Test
+    void aRecordWhoseBodyWasAlteredIsDamaged() {
+        long key = CellKey.pack(1, 1, 1, 1);
+        byte[] record = CellRecord.encode(distinctPerVoxel(key));
+        record[record.length / 2] ^= FLIPPED_BITS;
+
+        assertThrows(DamagedRecordException.class, () -> CellRecord.decode(key, record));
     }
 
     @Test
