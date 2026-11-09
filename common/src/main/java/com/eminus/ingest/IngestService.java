@@ -1,6 +1,7 @@
 package com.eminus.ingest;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -76,6 +77,23 @@ public final class IngestService {
 
         retryDeferred(chunk.getLevel(), chunkPos.x(), chunkPos.z());
         ingestChunk(chunk, trigger);
+    }
+
+    public void submitBiomeChange(Level level, Collection<ChunkPos> changed) {
+        LongOpenHashSet reached = new LongOpenHashSet();
+        for (ChunkPos pos : changed) {
+            for (int dz = -NEIGHBOR_REACH; dz <= NEIGHBOR_REACH; dz++) {
+                for (int dx = -NEIGHBOR_REACH; dx <= NEIGHBOR_REACH; dx++) {
+                    int chunkX = pos.x() + dx;
+                    int chunkZ = pos.z() + dz;
+                    LevelChunk chunk = reached.add(column(chunkX, chunkZ))
+                            ? level.getChunkSource().getChunkNow(chunkX, chunkZ) : null;
+                    if (chunk != null) {
+                        submitChunk(chunk, IngestTrigger.BIOME);
+                    }
+                }
+            }
+        }
     }
 
     private void flushMarked(LevelChunk chunk) {
