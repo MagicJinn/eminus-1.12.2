@@ -246,8 +246,8 @@ class MeshServiceTest {
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
         seedCube();
         ColumnCoverage coverage = new ColumnCoverage(LEVEL, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(HELD_CHUNK_X, KEY_CHUNK_Z), LEVEL);
-        coverage.load(ColumnCoverage.pack(DROPPED_CHUNK_X, KEY_CHUNK_Z), COARSE_LEVEL);
+        coverage.load(ColumnCoverage.pack(HELD_CHUNK_X, KEY_CHUNK_Z), LEVEL, true);
+        coverage.load(ColumnCoverage.pack(DROPPED_CHUNK_X, KEY_CHUNK_Z), COARSE_LEVEL, true);
         MeshService partial = new MeshService(harness.register(PARTIAL_SERVICE, MeshScratch::new), cache, coverage,
                 FRAME, models, new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 

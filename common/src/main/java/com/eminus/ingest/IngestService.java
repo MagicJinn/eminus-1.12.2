@@ -130,7 +130,7 @@ public final class IngestService {
         int chunkZ = chunk.getPos().z();
         boolean[] submitted = new boolean[chunk.getSections().length];
         int count = pickSections(chunk, light, submitted);
-        if (trigger != IngestTrigger.UNLOAD && coverage.covers(chunkX, chunkZ)) {
+        if (trigger != IngestTrigger.UNLOAD && coverage.holds(chunkX, chunkZ)) {
             probeSkippedSections(chunk, submitted);
         }
 
@@ -265,7 +265,7 @@ public final class IngestService {
             return;
         }
 
-        if (!coverage.covers(sectionX, sectionZ)) {
+        if (!coverage.holds(sectionX, sectionZ)) {
             submitChunk(chunk, trigger);
             return;
         }
@@ -310,6 +310,7 @@ public final class IngestService {
         }
 
         BiomeWindow window = biomeWindow(chunk, sectionY);
+        boolean everyLevel = !coverage.covers(sectionX, sectionZ);
 
         service.enqueue(pyramid -> {
             if (!running) {
@@ -320,7 +321,11 @@ public final class IngestService {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
 
                 PyramidDownsampler.build(pyramid, states, states);
-                merger.merge(pyramid, sectionX, sectionY, sectionZ);
+                if (everyLevel) {
+                    merger.mergeEveryLevel(pyramid, sectionX, sectionY, sectionZ);
+                } else {
+                    merger.merge(pyramid, sectionX, sectionY, sectionZ);
+                }
             } finally {
                 if (remaining != null && remaining.decrementAndGet() == 0) {
                     cover(sectionX, sectionZ);

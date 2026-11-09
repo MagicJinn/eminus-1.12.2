@@ -20,7 +20,7 @@ public interface CellStore extends BeamStore, AutoCloseable {
 
     void putColumn(long chunk, int lowestLevel);
 
-    void readColumns(ColumnCoverage.Persistence into);
+    void readColumns(ColumnCoverage.Loader into);
 
     @Override
     void close();
