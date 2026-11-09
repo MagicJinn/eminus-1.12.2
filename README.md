@@ -12,7 +12,7 @@ A NeoForge and Fabric client mod that draws terrain far beyond the game's render
 
 ## Status
 
-In development. Runs on both of the game's backends, OpenGL and Vulkan. Sodium is supported on both loaders. Under an Iris or Vitrail shader pack, LOD is drawn over the pack's finished frame; an Iris pack that ships the [shader-pack contract](docs/shader-pack-contract.md) shades it itself. Nothing is uploaded to Modrinth or CurseForge yet.
+In development. Runs on both of the game's backends, OpenGL and Vulkan. Sodium is supported on both loaders. Under an Iris or Vitrail shader pack, LOD is drawn over the pack's finished frame; an Iris pack that ships the [shader-pack contract](docs/shader-pack-contract.md) shades it itself. PC only, Android launchers aren't supported. Nothing is uploaded to Modrinth or CurseForge yet.
 
 ## For mod developers
 
