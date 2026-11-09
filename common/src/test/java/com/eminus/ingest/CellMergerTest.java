@@ -84,6 +84,20 @@ class CellMergerTest {
     }
 
     @Test
+    void aMergeOfEveryLevelRewritesACoarserLevelUnderAnUnchangedLevelZero() {
+        buildFrom(entry(STONE));
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+        int coarser = DetailLevel.MIN + 1;
+        long merged = harness.call(() -> swapCornerVoxel(coarser, VoxelEntry.AIR));
+        changes.clear();
+
+        harness.run(() -> merger.mergeEveryLevel(pyramid, 0, 0, 0));
+
+        assertEquals(1, changes.size());
+        assertEquals(merged, harness.call(() -> swapCornerVoxel(coarser, merged)));
+    }
+
+    @Test
     void aChangeOnTheCellBoundarySetsThatFacesBit() {
         buildFrom(VoxelEntry.AIR);
         set(0, 0, 0, entry(STONE));
@@ -237,6 +251,22 @@ class CellMergerTest {
         changes.add(new Change(faceMask, edgeMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty()), occupancy,
                 sequence));
         cells.release(handle);
+    }
+
+    private long swapCornerVoxel(int level, long entry) {
+        CellHandle handle = cells.open(frame.keyAt(level, 0, 0, 0));
+        int voxelX = CellFrame.voxelX(0, level);
+        int voxelY = frame.voxelY(0, level);
+        int voxelZ = CellFrame.voxelZ(0, level);
+        try {
+            return handle.withCell(cell -> {
+                long held = cell.get(voxelX, voxelY, voxelZ);
+                cell.set(voxelX, voxelY, voxelZ, entry);
+                return held;
+            });
+        } finally {
+            cells.release(handle);
+        }
     }
 
     private void buildFrom(long entry) {

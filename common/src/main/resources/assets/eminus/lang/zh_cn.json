@@ -93,5 +93,6 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD 动画",
   "gui.eminus.settings.lod_animations.hint.on": "为 Eminus 制作的光影包可以像近处一样让 LOD 中的草、树叶和水摆动。",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD 中没有任何摆动，可节省其消耗的 GPU 时间。"
+  "gui.eminus.settings.lod_animations.hint.off": "LOD 中没有任何摆动，可节省其消耗的 GPU 时间。",
+  "chat.eminus.lod_version_changed": "LOD 版本已更改。你重新到访的地方会更新 LOD。"
 }

@@ -105,7 +105,7 @@ class DimensionRuntimeTest {
 
         Map<Long, Integer> columns = new HashMap<>();
         try (CellStore reopened = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
-            reopened.readColumns(columns::put);
+            reopened.readColumns((chunk, lowestLevel, current) -> columns.put(chunk, lowestLevel));
         }
 
         assertEquals(Map.of(ColumnCoverage.pack(CHUNK_X, CHUNK_Z), LOWEST_STORED_LEVEL), columns);

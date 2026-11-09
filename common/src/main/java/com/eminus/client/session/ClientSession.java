@@ -88,6 +88,7 @@ public final class ClientSession {
 
     public static void disconnect() {
         BoxRegistry.get().clear();
+        StoreUpgradeNotice.forget();
         endSession();
     }
 
@@ -254,6 +255,7 @@ public final class ClientSession {
         }
 
         restartOnStaleInputs(minecraft);
+        StoreUpgradeNotice.post(minecraft);
         if (heldChunksPending) {
             submitHeldChunks();
         }
@@ -372,6 +374,7 @@ public final class ClientSession {
         stopRenderer();
         releaseRuntime();
         runtime = Objects.requireNonNull(instance, IN_SESSION).acquire(identityOf(current), current.getMinY());
+        StoreUpgradeNotice.opened(runtime);
         startRenderer(next, replacedArenaBytes);
         heldChunksPending = true;
     }
