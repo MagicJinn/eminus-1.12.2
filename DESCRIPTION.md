@@ -35,6 +35,8 @@ Every setting has a hint on the screen. The same values live in `config/eminus.j
 
 LOD appears only where you have already been. There is no import of existing worlds and no pregeneration.
 
+Eminus is made for PC. Android launchers like Pojav or FCL aren't supported.
+
 ## Bug reports
 
 Found something broken? Report it on the [issue tracker](https://github.com/anyttng/eminus/issues).
