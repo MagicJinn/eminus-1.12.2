@@ -22,8 +22,8 @@ uniform usamplerBuffer EminusNearSections;
 uniform sampler2D EminusOpaqueDepth;
 #endif
 
-float eminus_depth_before_iris_flip() {
-    return 1.0 - gl_FragCoord.z;
+float eminus_window_depth() {
+    return gl_FragCoord.z;
 }
 
 #ifdef BEHIND_FRONT
@@ -103,12 +103,12 @@ EminusFragment eminus_fragment() {
     }
 #endif
 #ifdef IN_FRONT_OF_OPAQUE
-    if (EMINUS_NEARER(texelFetch(EminusOpaqueDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
+    if (EMINUS_NEARER(texelFetch(EminusOpaqueDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_window_depth())) {
         discard;
     }
 #endif
 #ifdef BEHIND_FRONT
-    if (!EMINUS_NEARER(texelFetch(EminusFrontDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_depth_before_iris_flip())) {
+    if (!EMINUS_NEARER(texelFetch(EminusFrontDepth, ivec2(gl_FragCoord.xy), 0).r, eminus_window_depth())) {
         discard;
     }
 #endif
