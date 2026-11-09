@@ -10,7 +10,8 @@ import net.minecraft.core.Direction;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
-        int tintRow, int[] variants, int packId, FaceMip[] mips, int solidFaces, int shades, List<BakedModel> pieces) {
+        int tintRow, int[] variants, int packId, FaceMip[] mips, int solidFaces, int shades, List<BakedModel> pieces,
+        FaceOverlays overlays) {
     public static final int FACE_COUNT = 6;
     public static final int FACE_SIDE = 16;
     public static final int FACE_TEXELS = FACE_SIDE * FACE_SIDE;
@@ -50,7 +51,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
             int tintRow, FaceMip[] mips, int shades) {
         this(faces, tintMask, insets, slopes, bounds, metadata, tintRow, NO_VARIANTS, NO_PACK_ID, mips,
-                FaceMask.NONE, shades, List.of());
+                FaceMask.NONE, shades, List.of(), FaceOverlays.NONE);
     }
 
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata, int tintRow,
@@ -135,27 +136,32 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public BakedModel withVariants(int[] table, int solid) {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, table, packId, mips, solid,
-                shades, pieces);
+                shades, pieces, overlays);
     }
 
     public BakedModel solidUnder(MipBlend blend) {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, packId, mips,
-                solidFaces(faces, metadata, mips, blend), shades, pieces);
+                solidFaces(faces, metadata, mips, blend), shades, pieces, overlays);
     }
 
     public BakedModel withMetadata(int word) {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, word, tintRow, variants, packId, mips,
-                solidFaces, shades, pieces);
+                solidFaces, shades, pieces, overlays);
     }
 
     public BakedModel withPackId(int id) {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, id, mips,
-                solidFaces, shades, pieces);
+                solidFaces, shades, pieces, overlays);
     }
 
     public BakedModel withPieces(List<BakedModel> models) {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, packId, mips,
-                solidFaces, shades, List.copyOf(models));
+                solidFaces, shades, List.copyOf(models), overlays);
+    }
+
+    public BakedModel withOverlays(FaceOverlays layers) {
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, packId, mips,
+                solidFaces, shades, pieces, layers);
     }
 
     public BakedModel oneSided() {
@@ -167,7 +173,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
                 (metadata & (ModelMetadata.TINTED | ModelMetadata.MOVED)) | ModelMetadata.FLUID
                         | ModelMetadata.ONE_SIDED | ModelMetadata.INWARD);
         return new BakedModel(faces, tintMask, fluid.insets, new float[SLOPES_LENGTH], fluid.bounds, word, tintRow,
-                NO_VARIANTS, packId, mips, solidFaces, shades, List.of());
+                NO_VARIANTS, packId, mips, solidFaces, shades, List.of(), FaceOverlays.NONE);
     }
 
     public boolean sameGeometry(BakedModel other) {
@@ -241,7 +247,8 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
                 && Arrays.equals(mips, model.mips)
                 && packId == model.packId
                 && shades == model.shades
-                && pieces.equals(model.pieces);
+                && pieces.equals(model.pieces)
+                && overlays.equals(model.overlays);
     }
 
     @Override
@@ -257,6 +264,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         hash = 31 * hash + packId;
         hash = 31 * hash + shades;
         hash = 31 * hash + pieces.hashCode();
+        hash = 31 * hash + overlays.hashCode();
         return 31 * hash + tintRow;
     }
 

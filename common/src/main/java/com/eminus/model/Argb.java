@@ -27,6 +27,10 @@ public final class Argb {
                 | channelProduct(first, second, 0);
     }
 
+    public static float alphaFloat(int argb) {
+        return channel(argb, ALPHA_SHIFT) / (float) CHANNEL_MAX;
+    }
+
     private static int channelProduct(int first, int second, int shift) {
         return channel(first, shift) * channel(second, shift) / CHANNEL_MAX;
     }
