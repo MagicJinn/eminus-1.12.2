@@ -1,6 +1,7 @@
 package com.eminus.cell;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 public final class ColumnCoverage {
     public static final int GRID_SIDE = DetailLevel.VOXELS_PER_SIDE + 2;
@@ -16,7 +17,13 @@ public final class ColumnCoverage {
         void persist(long chunk, int lowestLevel);
     }
 
+    @FunctionalInterface
+    public interface Loader {
+        void load(long chunk, int lowestLevel, boolean current);
+    }
+
     private final Long2IntOpenHashMap lowest = new Long2IntOpenHashMap();
+    private final LongOpenHashSet outdated = new LongOpenHashSet();
     private final int storedLevel;
     private final Persistence persistence;
     private final boolean everything;
@@ -40,21 +47,34 @@ public final class ColumnCoverage {
         return (long) chunkX << Z_BITS | (chunkZ & Z_MASK);
     }
 
-    public synchronized void load(long chunk, int lowestLevel) {
+    public synchronized void load(long chunk, int lowestLevel, boolean current) {
         lowest.put(chunk, Math.min(lowest.get(chunk), lowestLevel));
+        if (!current) {
+            outdated.add(chunk);
+        }
     }
 
     public synchronized boolean cover(int chunkX, int chunkZ) {
         long chunk = pack(chunkX, chunkZ);
-        if (lowest.get(chunk) <= storedLevel) {
+        int held = lowest.get(chunk);
+        if (!outdated.remove(chunk) && held <= storedLevel) {
             return false;
         }
 
-        lowest.put(chunk, storedLevel);
+        lowest.put(chunk, Math.min(held, storedLevel));
         return true;
     }
 
     public synchronized boolean covers(int chunkX, int chunkZ) {
+        if (everything) {
+            return true;
+        }
+
+        long chunk = pack(chunkX, chunkZ);
+        return lowest.get(chunk) <= storedLevel && !outdated.contains(chunk);
+    }
+
+    public synchronized boolean holds(int chunkX, int chunkZ) {
         return everything || lowest.get(pack(chunkX, chunkZ)) <= storedLevel;
     }
 

@@ -55,7 +55,7 @@ class ColumnCoverageTest {
     @Test
     void aLoadedChunkIsCoveredAndNotCoveredAgain() {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(2, -3), DetailLevel.MIN);
+        coverage.load(ColumnCoverage.pack(2, -3), DetailLevel.MIN, true);
 
         assertFalse(coverage.cover(2, -3));
         assertTrue(filled(coverage, CellKey.pack(0, 1, 0, -2))[ColumnCoverage.index(0, 16)]);
@@ -77,7 +77,7 @@ class ColumnCoverageTest {
     @Test
     void aColumnLoadedFromALevelAboveTheStoredOneIsCoveredOnlyFromThere() {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(0, 0), RAISED);
+        coverage.load(ColumnCoverage.pack(0, 0), RAISED, true);
 
         assertFalse(coverage.covers(0, 0));
         assertFalse(filled(coverage, CellKey.pack(DetailLevel.MIN, 0, 0, 0))[ColumnCoverage.index(0, 0)]);
@@ -87,7 +87,7 @@ class ColumnCoverageTest {
     @Test
     void coveringAColumnLoadedAboveBringsItDownToTheStoredLevel() {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(0, 0), RAISED);
+        coverage.load(ColumnCoverage.pack(0, 0), RAISED, true);
 
         assertTrue(coverage.cover(0, 0));
         assertTrue(coverage.covers(0, 0));
@@ -95,10 +95,40 @@ class ColumnCoverageTest {
     }
 
     @Test
+    void anOutdatedColumnIsNotCoveredButStillFillsItsCells() {
+        ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
+        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN, false);
+
+        assertFalse(coverage.covers(0, 0));
+        assertTrue(coverage.holds(0, 0));
+        assertTrue(filled(coverage, CellKey.pack(DetailLevel.MIN, 0, 0, 0))[ColumnCoverage.index(0, 0)]);
+        assertFalse(coverage.missingColumns(CellKey.pack(DetailLevel.MIN, 0, 0, 0)));
+    }
+
+    @Test
+    void aColumnNeverCoveredIsNotHeld() {
+        ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
+        coverage.load(ColumnCoverage.pack(0, 0), RAISED, true);
+
+        assertFalse(coverage.holds(1, 0));
+        assertFalse(coverage.holds(0, 0));
+    }
+
+    @Test
+    void coveringAnOutdatedColumnMakesItCurrentOnce() {
+        ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
+        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN, false);
+
+        assertTrue(coverage.cover(0, 0));
+        assertTrue(coverage.covers(0, 0));
+        assertFalse(coverage.cover(0, 0));
+    }
+
+    @Test
     void aCellMissesColumnsItsParentHoldsUntilTheyAreCoveredAtItsLevel() {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN);
-        coverage.load(ColumnCoverage.pack(1, 0), RAISED);
+        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN, true);
+        coverage.load(ColumnCoverage.pack(1, 0), RAISED, true);
         long finest = CellKey.pack(DetailLevel.MIN, 0, 0, 0);
 
         assertTrue(coverage.missingColumns(finest));
@@ -112,7 +142,7 @@ class ColumnCoverageTest {
     @Test
     void aColumnNeverCoveredIsNotMissingFromACellWhoseParentLacksItToo() {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN);
+        coverage.load(ColumnCoverage.pack(0, 0), DetailLevel.MIN, true);
 
         assertFalse(coverage.missingColumns(CellKey.pack(DetailLevel.MIN, 0, 0, 0)));
         assertFalse(ColumnCoverage.everything().missingColumns(CellKey.pack(DetailLevel.MIN, 0, 0, 0)));

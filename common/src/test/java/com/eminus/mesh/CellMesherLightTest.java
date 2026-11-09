@@ -140,7 +140,7 @@ class CellMesherLightTest {
         cell.set(LAST_IN_FIRST_CHUNK, CENTER, CENTER, VoxelEntry.pack(WATER, BIOME, NO_LIGHT));
         cell.set(LAST_IN_FIRST_CHUNK, CENTER + 1, CENTER, VoxelEntry.pack(STONE, BIOME, NO_LIGHT));
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
-        coverage.load(FIRST_CHUNK, DetailLevel.MIN);
+        coverage.load(FIRST_CHUNK, DetailLevel.MIN, true);
 
         CellMesh mesh = mesh(cell, DetailLevel.MIN, coverage);
 

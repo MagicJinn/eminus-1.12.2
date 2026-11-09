@@ -70,7 +70,7 @@ class ZstdRecordStoreTest {
             }
 
             store.readDictionary(BLOCKS, blocks::put);
-            store.readColumns(columns::put);
+            store.readColumns((chunk, lowestLevel, current) -> columns.put(chunk, lowestLevel));
         }
 
         assertEquals(Map.of(0, AIR), blocks);

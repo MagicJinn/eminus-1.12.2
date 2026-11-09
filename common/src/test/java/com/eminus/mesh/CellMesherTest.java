@@ -1419,7 +1419,7 @@ class CellMesherTest {
     private static ColumnCoverage coverage(long... chunks) {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
         for (long chunk : chunks) {
-            coverage.load(chunk, DetailLevel.MIN);
+            coverage.load(chunk, DetailLevel.MIN, true);
         }
 
         return coverage;

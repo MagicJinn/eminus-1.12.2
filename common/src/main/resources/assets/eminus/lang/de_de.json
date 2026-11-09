@@ -92,5 +92,6 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD-Animationen",
   "gui.eminus.settings.lod_animations.hint.on": "ein für Eminus gemachtes Shaderpack darf Gras, Laub und Wasser im LOD wiegen lassen wie in der Nähe.",
-  "gui.eminus.settings.lod_animations.hint.off": "im LOD bewegt sich nichts, das spart GPU-Zeit."
+  "gui.eminus.settings.lod_animations.hint.off": "im LOD bewegt sich nichts, das spart GPU-Zeit.",
+  "chat.eminus.lod_version_changed": "Die LOD-Version hat sich geändert. Das LOD wird an Orten aktualisiert, die du wieder besuchst."
 }

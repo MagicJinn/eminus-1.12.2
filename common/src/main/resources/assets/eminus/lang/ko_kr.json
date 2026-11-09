@@ -92,5 +92,6 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD 애니메이션",
   "gui.eminus.settings.lod_animations.hint.on": "Eminus용으로 만든 셰이더 팩이 가까운 곳처럼 LOD의 풀, 잎, 물을 흔들 수 있습니다.",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD에서는 아무것도 흔들리지 않아 GPU 시간을 아낍니다."
+  "gui.eminus.settings.lod_animations.hint.off": "LOD에서는 아무것도 흔들리지 않아 GPU 시간을 아낍니다.",
+  "chat.eminus.lod_version_changed": "LOD 버전이 바뀌었습니다. 다시 방문하는 곳부터 LOD가 업데이트됩니다."
 }

@@ -39,6 +39,7 @@ public final class DimensionRuntime {
     private volatile CellChangeListener changes;
     private CellStore store;
     private int ingestLevel;
+    private boolean storeUpgraded;
     private SaveService saves;
     private CellCache cells;
     private ColumnCoverage coverage;
@@ -72,6 +73,10 @@ public final class DimensionRuntime {
 
     public int lowestStoredLevel() {
         return lowestStoredLevel;
+    }
+
+    public boolean storeUpgraded() {
+        return storeUpgraded;
     }
 
     public CellCache cells() {
@@ -130,6 +135,7 @@ public final class DimensionRuntime {
             SqliteCellStore opened = SqliteCellStore.open(folder, lowestStoredLevel, dropGraceMillis, clock);
             store = opened;
             ingestLevel = opened.heldLevel();
+            storeUpgraded = opened.upgraded();
         } catch (RuntimeException failure) {
             store = EmptyCellStore.INSTANCE;
             ingestLevel = lowestStoredLevel;
