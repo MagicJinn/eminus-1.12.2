@@ -3,6 +3,7 @@ package com.eminus.model;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.IntFunction;
 
 import com.eminus.cell.FaceMask;
@@ -13,6 +14,7 @@ import net.minecraft.core.Direction;
 import org.joml.GeometryUtils;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 
 public final class FaceRasterizer {
     public static final int BLADE_COUNT = 2;
@@ -42,6 +44,8 @@ public final class FaceRasterizer {
 
     private final QuadPainter painter = new QuadPainter();
     private final FaceMip[] mips = new FaceMip[BakedModel.FACE_COUNT];
+    private final @Nullable FaceMip[] overlayMips = new FaceMip[BakedModel.FACE_COUNT];
+    private final int[] under = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
     private final Direction[] shades = new Direction[BakedModel.FACE_COUNT];
     private final Vector3f planeNormal = new Vector3f();
     private final Vector3f planePoint = new Vector3f();
@@ -66,6 +70,8 @@ public final class FaceRasterizer {
         forceOpaque = opaque;
         painter.opaque(opaque);
         Arrays.fill(mips, FaceMip.MEAN);
+        Arrays.fill(overlayMips, null);
+        Arrays.fill(under, 0);
         Arrays.fill(shades, null);
     }
 
@@ -184,6 +190,8 @@ public final class FaceRasterizer {
         slopes[index + 1] = 0.0F;
         insets[face] = BakedModel.EMPTY_INSET;
         mips[face] = FaceMip.MEAN;
+        overlayMips[face] = null;
+        Arrays.fill(under, offset, offset + BakedModel.FACE_TEXELS, 0);
         present &= ~bit(face);
     }
 
@@ -257,6 +265,10 @@ public final class FaceRasterizer {
 
         mips[face] = painter.mip();
         shades[face] = painter.shade(FACES[face]);
+        if (painter.layered()) {
+            overlayMips[face] = painter.overlayMip();
+            painter.copyUnder(under, offset);
+        }
         measureFace(face, faces, insets, offset);
     }
 
@@ -312,8 +324,10 @@ public final class FaceRasterizer {
 
         int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
                 flags(quads, tintRow) | extraFlags | (forceOpaque ? ModelMetadata.OPAQUE : 0));
-        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, mips.clone(),
+        BakedModel model = new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, mips.clone(),
                 BakedModel.packShades(shades));
+        return Arrays.stream(overlayMips).anyMatch(Objects::nonNull)
+                ? model.withOverlays(new FaceOverlays(under.clone(), overlayMips.clone())) : model;
     }
 
     public static boolean bladed(List<ModelQuad> quads) {

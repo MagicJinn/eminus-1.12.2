@@ -2,6 +2,7 @@ package com.eminus.client.session;
 
 import java.nio.file.Path;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.function.ToIntFunction;
 
@@ -295,6 +296,13 @@ public final class ClientSession {
         BeamSet beams = beamsFor(chunk.getLevel());
         if (beams != null && (trigger == IngestTrigger.PACKET || trigger == IngestTrigger.HELD)) {
             BeamTriggers.chunkArrived(beams, chunk);
+        }
+    }
+
+    public static void biomesReplaced(ClientLevel source, Collection<ChunkPos> changed) {
+        IngestService ingest = ingestFor(source);
+        if (ingest != null) {
+            ingest.submitBiomeChange(source, changed);
         }
     }
 
