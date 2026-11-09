@@ -6,5 +6,6 @@ public enum IngestTrigger {
     BLOCK,
     HELD,
     NEIGHBOR,
-    LIGHT
+    LIGHT,
+    BIOME
 }

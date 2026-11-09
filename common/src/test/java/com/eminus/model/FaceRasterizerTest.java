@@ -10,7 +10,9 @@ import java.util.List;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
+import com.eminus.model.port.MipStrategy;
 import com.eminus.model.port.ModelQuad;
+import com.eminus.model.port.Sprite;
 
 import net.minecraft.core.Direction;
 
@@ -121,6 +123,31 @@ class FaceRasterizerTest {
                 assertEquals(expected, model.argb(face, row * BakedModel.FACE_SIDE + column), "row " + row);
             }
         }
+    }
+
+    @Test
+    void aTintedCutoutLayerOverAnotherKeepsTheTexelsBelowIt() {
+        Sprite base = new LayerSprite(MipStrategy.MEAN);
+        Sprite overlay = new LayerSprite(MipStrategy.CUTOUT);
+        float[] south = {0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1};
+        List<ModelQuad> quads = List.of(layer(south, base, ModelQuad.NO_TINT), layer(south, overlay, TINT_LAYER));
+        QuadTexels texels = (quad, u, v) -> base.equals(quad.sprite()) ? YELLOW : v < BAND_TOP ? WHITE : TRANSPARENT;
+
+        BakedModel model = rasterizer.rasterize(quads, texels, FaceRasterizerTest::noTints);
+
+        int face = Direction.SOUTH.get3DDataValue();
+        FaceOverlays overlays = model.overlays();
+        assertTrue(overlays.layered(face));
+        assertEquals(MipStrategy.CUTOUT, overlays.mip(face).strategy());
+        int whiteTexels = 0;
+        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+            boolean white = model.argb(face, texel) == WHITE;
+            whiteTexels += white ? 1 : 0;
+            assertEquals(white ? YELLOW : 0, overlays.under(face, texel), "texel " + texel);
+            assertEquals(white, model.tinted(face, texel), "texel " + texel);
+        }
+        assertEquals(BakedModel.FACE_TEXELS / 2, whiteTexels);
+        assertFalse(overlays.layered(Direction.NORTH.get3DDataValue()));
     }
 
     @Test
@@ -489,6 +516,57 @@ class FaceRasterizerTest {
             new Vector3f(positions[6], positions[7], positions[8]),
             new Vector3f(positions[9], positions[10], positions[11])},
                 uvs.clone(), null, tintLayer, false, 0, direction, shade, true);
+    }
+
+    private static ModelQuad layer(float[] positions, Sprite sprite, int tintLayer) {
+        return new ModelQuad(new Vector3fc[] {
+            new Vector3f(positions[0], positions[1], positions[2]),
+            new Vector3f(positions[3], positions[4], positions[5]),
+            new Vector3f(positions[6], positions[7], positions[8]),
+            new Vector3f(positions[9], positions[10], positions[11])},
+                FACE_UV.clone(), sprite, tintLayer, false, 0, Direction.SOUTH, Direction.SOUTH, true);
+    }
+
+    private record LayerSprite(MipStrategy mipStrategy) implements Sprite {
+        @Override
+        public int width() {
+            return BakedModel.FACE_SIDE;
+        }
+
+        @Override
+        public int height() {
+            return BakedModel.FACE_SIDE;
+        }
+
+        @Override
+        public float u0() {
+            return 0.0F;
+        }
+
+        @Override
+        public float u1() {
+            return 1.0F;
+        }
+
+        @Override
+        public float v0() {
+            return 0.0F;
+        }
+
+        @Override
+        public float v1() {
+            return 1.0F;
+        }
+
+        @Override
+        public int[] argb() {
+            return new int[0];
+        }
+
+        @Override
+        public float alphaCutoffBias() {
+            return 0.0F;
+        }
     }
 
     private static @Nullable Tint noTints(int layer) {
