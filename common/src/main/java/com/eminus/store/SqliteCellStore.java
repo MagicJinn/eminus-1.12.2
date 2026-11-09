@@ -36,9 +36,9 @@ public final class SqliteCellStore implements CellStore {
     private static final String UPSERT_DICTIONARY =
             "INSERT OR REPLACE INTO dictionary (name, id, value) VALUES (?, ?, ?)";
     private static final String SELECT_DICTIONARY = "SELECT id, value FROM dictionary WHERE name = ? ORDER BY id";
-    private static final String INSERT_COLUMN = "INSERT INTO columns (chunk, lowest) VALUES (?, ?)"
-            + " ON CONFLICT (chunk) DO UPDATE SET lowest = min(lowest, excluded.lowest)";
-    static final String SELECT_COLUMNS = "SELECT chunk, lowest FROM columns";
+    private static final String INSERT_COLUMN = "INSERT INTO columns (chunk, lowest, format) VALUES (?, ?, ?)"
+            + " ON CONFLICT (chunk) DO UPDATE SET lowest = min(lowest, excluded.lowest), format = excluded.format";
+    private static final String SELECT_COLUMNS = "SELECT chunk, lowest, format FROM columns";
     private static final String CREATE_META =
             "CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value INTEGER NOT NULL)";
     private static final String SELECT_META = "SELECT value FROM meta WHERE name = ?";
@@ -58,6 +58,7 @@ public final class SqliteCellStore implements CellStore {
     private final Path file;
     private final int heldLevel;
     private final boolean keepsCellsBelow;
+    private final boolean upgraded;
     private final LongSupplier clock;
     private final long openedAt;
     private final Connection connection;
@@ -86,7 +87,7 @@ public final class SqliteCellStore implements CellStore {
         Connection connection = null;
         try {
             connection = source.getConnection();
-            StoreSchema.prepare(connection, file);
+            boolean upgraded = StoreSchema.prepare(connection, file);
             try (Statement statement = connection.createStatement()) {
                 statement.execute(CREATE_META);
                 statement.execute(CREATE_BEAMS);
@@ -94,8 +95,8 @@ public final class SqliteCellStore implements CellStore {
 
             int heldLevel = settleHeldLevel(connection, lowestStoredLevel, dropGraceMillis, file);
             vacuumWhenSparse(connection);
-            SqliteCellStore store = new SqliteCellStore(file, heldLevel, heldLevel < lowestStoredLevel, clock,
-                    connection);
+            SqliteCellStore store = new SqliteCellStore(file, heldLevel, heldLevel < lowestStoredLevel, upgraded,
+                    clock, connection);
             Eminus.LOGGER.info("Cell store opened at {} on SQLite {}", file, sqliteVersion(connection));
             return store;
         } catch (SQLException failure) {
@@ -107,11 +108,12 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private SqliteCellStore(Path file, int heldLevel, boolean keepsCellsBelow, LongSupplier clock,
+    private SqliteCellStore(Path file, int heldLevel, boolean keepsCellsBelow, boolean upgraded, LongSupplier clock,
             Connection connection) throws SQLException {
         this.file = file;
         this.heldLevel = heldLevel;
         this.keepsCellsBelow = keepsCellsBelow;
+        this.upgraded = upgraded;
         this.clock = clock;
         this.openedAt = clock.getAsLong();
         this.connection = connection;
@@ -129,6 +131,10 @@ public final class SqliteCellStore implements CellStore {
 
     public int heldLevel() {
         return heldLevel;
+    }
+
+    public boolean upgraded() {
+        return upgraded;
     }
 
     @Override
@@ -204,6 +210,7 @@ public final class SqliteCellStore implements CellStore {
         try {
             insertColumn.setLong(1, chunk);
             insertColumn.setInt(2, lowestLevel);
+            insertColumn.setInt(3, StoreFormat.VERSION);
             insertColumn.executeUpdate();
         } catch (SQLException failure) {
             throw new StoreException("Could not write column " + chunk + " to " + file, failure);
@@ -211,10 +218,10 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
-    public synchronized void readColumns(ColumnCoverage.Persistence into) {
+    public synchronized void readColumns(ColumnCoverage.Loader into) {
         try (ResultSet rows = selectColumns.executeQuery()) {
             while (rows.next()) {
-                into.persist(rows.getLong(1), rows.getInt(2));
+                into.load(rows.getLong(1), rows.getInt(2), rows.getInt(3) >= StoreFormat.VERSION);
             }
         } catch (SQLException failure) {
             throw new StoreException("Could not read the covered columns from " + file, failure);

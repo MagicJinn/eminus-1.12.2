@@ -31,12 +31,20 @@ public final class CellMerger {
     }
 
     public void merge(SectionPyramid pyramid, int sectionX, int sectionY, int sectionZ) {
+        merge(pyramid, sectionX, sectionY, sectionZ, true);
+    }
+
+    public void mergeEveryLevel(SectionPyramid pyramid, int sectionX, int sectionY, int sectionZ) {
+        merge(pyramid, sectionX, sectionY, sectionZ, false);
+    }
+
+    private void merge(SectionPyramid pyramid, int sectionX, int sectionY, int sectionZ, boolean stopWhenUnchanged) {
         int blockX = sectionX * SectionPyramid.SECTION_SIDE;
         int blockY = sectionY * SectionPyramid.SECTION_SIDE;
         int blockZ = sectionZ * SectionPyramid.SECTION_SIDE;
 
         for (int level = lowestStoredLevel; level <= DetailLevel.MAX; level++) {
-            if (!mergeLevel(pyramid, level, blockX, blockY, blockZ)) {
+            if (!mergeLevel(pyramid, level, blockX, blockY, blockZ) && stopWhenUnchanged) {
                 return;
             }
         }

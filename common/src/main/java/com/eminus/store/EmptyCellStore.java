@@ -38,7 +38,7 @@ public final class EmptyCellStore implements CellStore {
     }
 
     @Override
-    public void readColumns(ColumnCoverage.Persistence into) {
+    public void readColumns(ColumnCoverage.Loader into) {
     }
 
     @Override

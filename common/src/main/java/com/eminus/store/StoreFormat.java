@@ -1,11 +1,7 @@
 package com.eminus.store;
 
 public final class StoreFormat {
-    public static final int VERSION = 5;
-    public static final int BEFORE_COVERAGE = 1;
-    public static final int BEFORE_GAPS = 2;
-    public static final int BEFORE_LOWEST = 3;
-    public static final int BEFORE_LAYERS = 4;
+    public static final int VERSION = 6;
     public static final int RECORD_VERSION = 5;
     public static final int ZSTD_RECORD_VERSION = 3;
 
