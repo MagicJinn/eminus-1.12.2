@@ -43,6 +43,10 @@ uniform sampler2D EminusFrontDepth;
 out vec4 fragColor;
 
 void main() {
+#ifdef DEPTH_ONLY
+    fragColor = vec4(0.0);
+    return;
+#endif
     vec2 occlusionFootprint = fwidth(occlusionPoint.xy);
 #ifdef NEAR_SECTIONS
     if (eminus_in_near_section(nearPoint)) {

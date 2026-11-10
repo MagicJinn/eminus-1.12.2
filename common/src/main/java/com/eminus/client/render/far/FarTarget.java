@@ -16,6 +16,7 @@ public final class FarTarget implements AutoCloseable {
     private static final String OPAQUE_DEPTH_LABEL = "eminus-far-opaque-depth";
     private static final String FRONT_DEPTH_LABEL = "eminus-far-front-depth";
     private static final String SECOND_DEPTH_LABEL = "eminus-far-second-depth";
+    private static final String OCCLUDER_DEPTH_LABEL = "eminus-far-occluder-depth";
     public static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
     private static final Set<TextureUsage> DEPTH_USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED,
@@ -30,6 +31,7 @@ public final class FarTarget implements AutoCloseable {
     private Texture frontDepth;
     private Texture secondDepth;
     private @Nullable Texture opaqueDepth;
+    private @Nullable Texture occluderDepth;
 
     private FarTarget(Gpu gpu, Format depthFormat, int width, int height) {
         this.gpu = gpu;
@@ -73,6 +75,13 @@ public final class FarTarget implements AutoCloseable {
         return opaqueDepth;
     }
 
+    public Texture occluderDepth() {
+        if (occluderDepth == null) {
+            occluderDepth = gpu.texture(OCCLUDER_DEPTH_LABEL, DEPTH_USAGE, depthFormat, width(), height(), MIPS);
+        }
+        return occluderDepth;
+    }
+
     public void resize(int width, int height) {
         gpu.assertRenderThread();
         if (width == width() && height == height()) {
@@ -103,6 +112,10 @@ public final class FarTarget implements AutoCloseable {
         if (opaqueDepth != null) {
             opaqueDepth.close();
             opaqueDepth = null;
+        }
+        if (occluderDepth != null) {
+            occluderDepth.close();
+            occluderDepth = null;
         }
     }
 }
