@@ -39,7 +39,11 @@ public final class TurnMargin {
             return NO_TURN;
         }
 
-        float dot = Math.min(SAME_ROTATION_DOT, Math.abs(from.dot(to)));
+        float dot = Math.min(SAME_ROTATION_DOT, Math.abs(dot(from, to)));
         return QUATERNION_ANGLE_SCALE * (float) Math.acos(dot);
+    }
+
+    private static float dot(Quaternionfc a, Quaternionfc b) {
+        return a.x() * b.x() + a.y() * b.y() + a.z() * b.z() + a.w() * b.w();
     }
 }

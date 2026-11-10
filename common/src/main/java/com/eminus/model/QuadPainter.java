@@ -2,18 +2,21 @@ package com.eminus.model;
 
 import java.util.Arrays;
 
+import com.eminus.model.port.MipStrategy;
 import com.eminus.model.port.ModelQuad;
 import com.eminus.model.port.Sprite;
 
 import net.minecraft.core.Direction;
 
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 
 final class QuadPainter {
     static final float CENTER = 0.5F;
     static final float[] UNIT_FRAME = {0.0F, 1.0F, 0.0F, 1.0F};
 
     private static final float MIN_AREA = 1.0E-6F;
+    private static final float SAME_PLANE = 1.0E-4F;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int FRAME_U_FROM = 0;
     private static final int FRAME_U_SPAN = 1;
@@ -31,6 +34,8 @@ final class QuadPainter {
     private final Sprite[] sprites = new Sprite[BakedModel.FACE_TEXELS];
     private final Direction[] shades = new Direction[BakedModel.FACE_TEXELS];
     private final int[] shadeTexels = new int[DIRECTIONS];
+    private final int[] under = new int[BakedModel.FACE_TEXELS];
+    private @Nullable Sprite overlay;
     private boolean forceOpaque;
 
     void opaque(boolean opaque) {
@@ -41,6 +46,24 @@ final class QuadPainter {
         Arrays.fill(depth, Float.MAX_VALUE);
         Arrays.fill(sprites, null);
         Arrays.fill(shades, null);
+        Arrays.fill(under, 0);
+        overlay = null;
+    }
+
+    boolean layered() {
+        return overlay != null;
+    }
+
+    FaceMip overlayMip() {
+        Sprite painted = overlay;
+        if (painted == null) {
+            throw new IllegalStateException("No tinted cutout layer was painted over another on this face.");
+        }
+        return FaceMip.of(painted);
+    }
+
+    void copyUnder(int[] into, int offset) {
+        System.arraycopy(under, 0, into, offset, BakedModel.FACE_TEXELS);
     }
 
     boolean drawn(int texel) {
@@ -137,6 +160,12 @@ final class QuadPainter {
                     continue;
                 }
 
+                if (overlays(quad, tinted, texel, hit) && !BakedModel.tinted(tintMask, offset + texel)) {
+                    under[texel] = faces[offset + texel];
+                    overlay = quad.sprite();
+                } else if (!repaints(quad, texel, hit)) {
+                    under[texel] = 0;
+                }
                 faces[offset + texel] = argb;
                 sprites[texel] = quad.sprite();
                 shades[texel] = quad.shade();
@@ -144,6 +173,17 @@ final class QuadPainter {
                 depth[texel] = hit;
             }
         }
+    }
+
+    private boolean overlays(ModelQuad quad, boolean tinted, int texel, float hit) {
+        Sprite sprite = quad.sprite();
+        return tinted && !forceOpaque && sprite != null && sprite.mipStrategy() != MipStrategy.MEAN && drawn(texel)
+                && Math.abs(hit - depth[texel]) <= SAME_PLANE;
+    }
+
+    private boolean repaints(ModelQuad quad, int texel, float hit) {
+        Sprite painted = sprites[texel];
+        return painted != null && painted.equals(quad.sprite()) && Math.abs(hit - depth[texel]) <= SAME_PLANE;
     }
 
     static float along(Vector3fc position, Vector3fc axis) {

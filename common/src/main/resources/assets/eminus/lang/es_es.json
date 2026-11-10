@@ -92,5 +92,6 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "Animaciones del LOD",
   "gui.eminus.settings.lod_animations.hint.on": "un shader hecho para Eminus puede mover la hierba, las hojas y el agua en el LOD como lo hace de cerca.",
-  "gui.eminus.settings.lod_animations.hint.off": "nada se mueve en el LOD, lo que ahorra tiempo de GPU."
+  "gui.eminus.settings.lod_animations.hint.off": "nada se mueve en el LOD, lo que ahorra tiempo de GPU.",
+  "chat.eminus.lod_version_changed": "La versión del LOD ha cambiado. El LOD se actualiza en los lugares a los que vuelvas."
 }

@@ -1,6 +1,7 @@
 package com.eminus.ingest;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -78,6 +79,23 @@ public final class IngestService {
         ingestChunk(chunk, trigger);
     }
 
+    public void submitBiomeChange(Level level, Collection<ChunkPos> changed) {
+        LongOpenHashSet reached = new LongOpenHashSet();
+        for (ChunkPos pos : changed) {
+            for (int dz = -NEIGHBOR_REACH; dz <= NEIGHBOR_REACH; dz++) {
+                for (int dx = -NEIGHBOR_REACH; dx <= NEIGHBOR_REACH; dx++) {
+                    int chunkX = pos.x() + dx;
+                    int chunkZ = pos.z() + dz;
+                    LevelChunk chunk = reached.add(column(chunkX, chunkZ))
+                            ? level.getChunkSource().getChunkNow(chunkX, chunkZ) : null;
+                    if (chunk != null) {
+                        submitChunk(chunk, IngestTrigger.BIOME);
+                    }
+                }
+            }
+        }
+    }
+
     private void flushMarked(LevelChunk chunk) {
         ChunkPos chunkPos = chunk.getPos();
         boolean covered = coverage.covers(chunkPos.x(), chunkPos.z());
@@ -112,7 +130,7 @@ public final class IngestService {
         int chunkZ = chunk.getPos().z();
         boolean[] submitted = new boolean[chunk.getSections().length];
         int count = pickSections(chunk, light, submitted);
-        if (trigger != IngestTrigger.UNLOAD && coverage.covers(chunkX, chunkZ)) {
+        if (trigger != IngestTrigger.UNLOAD && coverage.holds(chunkX, chunkZ)) {
             probeSkippedSections(chunk, submitted);
         }
 
@@ -247,7 +265,7 @@ public final class IngestService {
             return;
         }
 
-        if (!coverage.covers(sectionX, sectionZ)) {
+        if (!coverage.holds(sectionX, sectionZ)) {
             submitChunk(chunk, trigger);
             return;
         }
@@ -292,6 +310,7 @@ public final class IngestService {
         }
 
         BiomeWindow window = biomeWindow(chunk, sectionY);
+        boolean everyLevel = !coverage.covers(sectionX, sectionZ);
 
         service.enqueue(pyramid -> {
             if (!running) {
@@ -302,7 +321,11 @@ public final class IngestService {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
 
                 PyramidDownsampler.build(pyramid, states, states);
-                merger.merge(pyramid, sectionX, sectionY, sectionZ);
+                if (everyLevel) {
+                    merger.mergeEveryLevel(pyramid, sectionX, sectionY, sectionZ);
+                } else {
+                    merger.merge(pyramid, sectionX, sectionY, sectionZ);
+                }
             } finally {
                 if (remaining != null && remaining.decrementAndGet() == 0) {
                     cover(sectionX, sectionZ);

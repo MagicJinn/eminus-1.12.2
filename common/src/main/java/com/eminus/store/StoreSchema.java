@@ -5,37 +5,55 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.cell.DetailLevel;
 
 final class StoreSchema {
     private static final int FRESH_VERSION = 0;
+    private static final int OLDER_COLUMN_FORMAT = 0;
+    private static final String LOWEST_FIELD = "lowest";
+    private static final String FORMAT_FIELD = "format";
+    private static final String FIELD_NAME = "name";
 
-    private static final String CREATE_CELLS =
-            "CREATE TABLE cells (key INTEGER PRIMARY KEY, occupancy INTEGER NOT NULL, data BLOB NOT NULL)";
-    private static final String CREATE_DICTIONARY =
-            "CREATE TABLE dictionary (name TEXT NOT NULL, id INTEGER NOT NULL, value TEXT NOT NULL,"
-                    + " PRIMARY KEY (name, id))";
-    private static final String CREATE_COLUMNS =
-            "CREATE TABLE columns (chunk INTEGER PRIMARY KEY, lowest INTEGER NOT NULL)";
-    private static final String DROP_CELLS = "DROP TABLE IF EXISTS cells";
-    private static final String DROP_DICTIONARY = "DROP TABLE IF EXISTS dictionary";
-    private static final String DROP_COLUMNS = "DROP TABLE IF EXISTS columns";
+    private static final String CREATE_CELLS = "CREATE TABLE IF NOT EXISTS cells"
+            + " (key INTEGER PRIMARY KEY, occupancy INTEGER NOT NULL, data BLOB NOT NULL)";
+    private static final String CREATE_DICTIONARY = "CREATE TABLE IF NOT EXISTS dictionary"
+            + " (name TEXT NOT NULL, id INTEGER NOT NULL, value TEXT NOT NULL, PRIMARY KEY (name, id))";
+    private static final String CREATE_COLUMNS = "CREATE TABLE IF NOT EXISTS columns (chunk INTEGER PRIMARY KEY)";
+    private static final String ADD_LOWEST =
+            "ALTER TABLE columns ADD COLUMN " + LOWEST_FIELD + " INTEGER NOT NULL DEFAULT " + DetailLevel.MIN;
+    private static final String ADD_FORMAT =
+            "ALTER TABLE columns ADD COLUMN " + FORMAT_FIELD + " INTEGER NOT NULL DEFAULT " + OLDER_COLUMN_FORMAT;
+    private static final String READ_COLUMN_FIELDS = "PRAGMA table_info(columns)";
     private static final String READ_VERSION = "PRAGMA user_version";
     private static final String WRITE_VERSION = "PRAGMA user_version = ";
 
     private StoreSchema() {
     }
 
-    static void prepare(Connection connection, Path file) throws SQLException {
+    static boolean prepare(Connection connection, Path file) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             int version = version(statement);
             if (version == StoreFormat.VERSION) {
-                return;
+                return false;
             }
 
-            dropOutdated(statement, version, file);
-            create(statement);
+            if (version < FRESH_VERSION || version > StoreFormat.VERSION) {
+                throw new StoreException("The cell store " + file + " is format version " + version
+                        + ", this build reads version " + StoreFormat.VERSION, null);
+            }
+
+            bringToCurrent(connection, statement);
+            if (version == FRESH_VERSION) {
+                return false;
+            }
+
+            Eminus.LOGGER.info("The cell store {} was format version {}; its cells are kept and each column is "
+                    + "rebuilt as version {} when it is ingested again", file, version, StoreFormat.VERSION);
+            return true;
         }
     }
 
@@ -46,24 +64,39 @@ final class StoreSchema {
         }
     }
 
-    private static void dropOutdated(Statement statement, int version, Path file) throws SQLException {
-        if (version >= StoreFormat.BEFORE_COVERAGE && version < StoreFormat.VERSION) {
-            Eminus.LOGGER.warn("The cell store {} is format version {}, whose coarser voxels this build reads "
-                    + "otherwise; its cells are dropped and it is rebuilt as version {}", file, version,
-                    StoreFormat.VERSION);
-            statement.execute(DROP_CELLS);
-            statement.execute(DROP_DICTIONARY);
-            statement.execute(DROP_COLUMNS);
-        } else if (version != FRESH_VERSION) {
-            throw new StoreException("The cell store " + file + " is format version " + version
-                    + ", this build reads version " + StoreFormat.VERSION, null);
+    private static void bringToCurrent(Connection connection, Statement statement) throws SQLException {
+        connection.setAutoCommit(false);
+        try {
+            statement.execute(CREATE_CELLS);
+            statement.execute(CREATE_DICTIONARY);
+            statement.execute(CREATE_COLUMNS);
+            Set<String> fields = columnFields(statement);
+            if (!fields.contains(LOWEST_FIELD)) {
+                statement.execute(ADD_LOWEST);
+            }
+
+            if (!fields.contains(FORMAT_FIELD)) {
+                statement.execute(ADD_FORMAT);
+            }
+
+            statement.execute(WRITE_VERSION + StoreFormat.VERSION);
+            connection.commit();
+        } catch (SQLException failure) {
+            connection.rollback();
+            throw failure;
+        } finally {
+            connection.setAutoCommit(true);
         }
     }
 
-    private static void create(Statement statement) throws SQLException {
-        statement.execute(CREATE_CELLS);
-        statement.execute(CREATE_DICTIONARY);
-        statement.execute(CREATE_COLUMNS);
-        statement.execute(WRITE_VERSION + StoreFormat.VERSION);
+    private static Set<String> columnFields(Statement statement) throws SQLException {
+        Set<String> fields = new HashSet<>();
+        try (ResultSet rows = statement.executeQuery(READ_COLUMN_FIELDS)) {
+            while (rows.next()) {
+                fields.add(rows.getString(FIELD_NAME));
+            }
+        }
+
+        return fields;
     }
 }

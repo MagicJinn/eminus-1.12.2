@@ -13,6 +13,7 @@ import com.eminus.ingest.IngestTrigger;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.world.level.chunk.LevelChunk;
 
@@ -24,6 +25,12 @@ public class ClientPacketListenerMixin {
     @Inject(method = "enableChunkLight", at = @At("RETURN"))
     private void eminus$ingestLitChunk(LevelChunk chunk, int x, int z, CallbackInfo callback) {
         ClientSession.submitChunk(chunk, IngestTrigger.PACKET);
+    }
+
+    @Inject(method = "handleChunksBiomes", at = @At("RETURN"))
+    private void eminus$ingestReplacedBiomes(ClientboundChunksBiomesPacket packet, CallbackInfo callback) {
+        ClientSession.biomesReplaced(level, packet.chunkBiomeData().stream()
+                .map(ClientboundChunksBiomesPacket.ChunkBiomeData::pos).toList());
     }
 
     @Inject(method = "applyLightData", at = @At("RETURN"))

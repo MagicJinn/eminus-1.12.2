@@ -29,19 +29,23 @@ public final class OpaquePass implements AutoCloseable {
 
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_opaque");
     private static final Location SOLID_PIPELINE = new Location(Eminus.MODID, "far_opaque_solid");
+    private static final Location OCCLUDER_PIPELINE = new Location(Eminus.MODID, "far_occluders");
     private static final String PASS_LABEL = "eminus-far-opaque";
+    private static final String OCCLUDER_LABEL = "eminus-far-occluders";
     private static final Vector4fc CLEAR_COLOR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
     private static final int FIRST_COMMAND = 0;
 
     private final Gpu gpu;
     private final Pipeline solid;
     private final Pipeline pipeline;
+    private final Pipeline occluders;
     private final OcclusionPyramid pyramid;
 
-    private OpaquePass(Gpu gpu, Pipeline solid, Pipeline pipeline, OcclusionPyramid pyramid) {
+    private OpaquePass(Gpu gpu, Pipeline solid, Pipeline pipeline, Pipeline occluders, OcclusionPyramid pyramid) {
         this.gpu = gpu;
         this.solid = solid;
         this.pipeline = pipeline;
+        this.occluders = occluders;
         this.pyramid = pyramid;
     }
 
@@ -51,11 +55,17 @@ public final class OpaquePass implements AutoCloseable {
         return new OpaquePass(gpu,
                 gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
                 gpu.pipeline(target(FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
-                        .withDefine("NEAR_SECTIONS"), depth)), OcclusionPyramid.create(gpu, depth));
+                        .withDefine("NEAR_SECTIONS"), depth)),
+                gpu.pipeline(FarQuads.solidPipeline(OCCLUDER_PIPELINE, capabilities, variantDraw)
+                        .withDefine("DEPTH_ONLY")
+                        .withColorTarget(FarTarget.COLOR_FORMAT, null, false)
+                        .withDepthTest(depth.compare(), true)
+                        .build()),
+                OcclusionPyramid.create(gpu, depth));
     }
 
     public List<Pipeline> pipelines() {
-        return List.of(solid, pipeline, pyramid.pipeline());
+        return List.of(solid, pipeline, occluders, pyramid.pipeline());
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
@@ -78,8 +88,23 @@ public final class OpaquePass implements AutoCloseable {
         }
     }
 
-    void buildPyramid(FarTarget target) {
-        pyramid.build(target.depth());
+    void drawOccluders(FarTarget target, Texture depth, GeometryArena arena, ModelPublisher models,
+            Texture lightmap, Sampler atlas, Buffer commands, int solidCount, Buffer frame) {
+        gpu.assertRenderThread();
+        if (solidCount == 0) {
+            return;
+        }
+
+        try (Pass pass = gpu.pass(PassSpec.of(OCCLUDER_LABEL, target.color(), null)
+                .withDepth(depth, OptionalDouble.empty()))) {
+            pass.pipeline(occluders);
+            FarQuads.bind(pass, arena, models, lightmap, atlas, frame, null);
+            pass.drawIndexedIndirect(commands, FIRST_COMMAND, solidCount);
+        }
+    }
+
+    void buildPyramid(Texture depth) {
+        pyramid.build(depth);
     }
 
     @Nullable Texture readLevel() {

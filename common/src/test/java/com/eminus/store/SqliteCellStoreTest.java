@@ -1,6 +1,7 @@
 package com.eminus.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,7 +35,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.sqlite.SQLiteDataSource;
 
 @Timeout(60)
@@ -85,79 +85,84 @@ class SqliteCellStoreTest {
 
         List<Long> read = new ArrayList<>();
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.readColumns((chunk, lowestLevel) -> read.add(chunk));
+            store.readColumns((chunk, lowestLevel, current) -> read.add(chunk));
         }
 
         assertEquals(2, read.size());
         assertEquals(Set.of(COLUMN_A, COLUMN_B), new HashSet<>(read));
     }
 
-    @Test
-    void aStoreWrittenBeforeCoverageIsRebuiltEmptyUnderTheCurrentVersion() throws SQLException {
-        long key = CellKey.pack(1, 2, 3, 4);
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(key));
-            store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
-        }
-
-        execute("DROP TABLE columns");
-        execute("PRAGMA user_version = " + StoreFormat.BEFORE_COVERAGE);
-
-        List<String> blocks = new ArrayList<>();
-        List<Long> columns = new ArrayList<>();
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            assertNull(store.read(key));
-            store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
-            store.readColumns((chunk, lowestLevel) -> columns.add(chunk));
-        }
-
-        assertTrue(blocks.isEmpty());
-        assertTrue(columns.isEmpty());
-        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
-        assertEquals(1, readInt(COUNT_COLUMNS_TABLE));
-    }
-
-    @Test
-    void aStoreWrittenBeforeGapsIsRebuiltEmptyUnderTheCurrentVersion() throws SQLException {
-        long key = CellKey.pack(1, 2, 3, 4);
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(key));
-            store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
-        }
-
-        execute("PRAGMA user_version = " + StoreFormat.BEFORE_GAPS);
-
-        List<String> blocks = new ArrayList<>();
-        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            assertNull(store.read(key));
-            store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
-        }
-
-        assertTrue(blocks.isEmpty());
-        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
-    }
-
     @ParameterizedTest
-    @ValueSource(ints = {StoreFormat.BEFORE_LOWEST, StoreFormat.BEFORE_LAYERS})
-    void aStoreWrittenBeforeLayeredVoxelsIsRebuiltEmptyUnderTheCurrentVersion(int version) throws SQLException {
+    @MethodSource("olderVersions")
+    void anOlderStoreKeepsItsCellsAndDictionaryUnderTheCurrentVersion(int version) throws SQLException {
         long key = CellKey.pack(1, 2, 3, 4);
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             store.write(Cell.blank(key));
             store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
-            store.putColumn(COLUMN_A, LOWEST_LEVEL);
         }
 
         execute("PRAGMA user_version = " + version);
 
         List<String> blocks = new ArrayList<>();
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            assertNull(store.read(key));
+            assertTrue(store.upgraded());
+            assertNotNull(store.read(key));
             store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
         }
 
-        assertTrue(blocks.isEmpty());
-        assertTrue(columnsAt(LOWEST_LEVEL).isEmpty());
+        assertEquals(List.of("minecraft:air"), blocks);
         assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            assertFalse(store.upgraded());
+        }
+    }
+
+    @Test
+    void aFreshOrCurrentStoreIsNotUpgraded() {
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            assertFalse(store.upgraded());
+        }
+
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            assertFalse(store.upgraded());
+        }
+    }
+
+    @Test
+    void theColumnsOfAnOlderStoreComeBackOutdatedAtTheirLevel() throws SQLException {
+        givenAnOlderColumnsTable("chunk INTEGER PRIMARY KEY, lowest INTEGER NOT NULL", COLUMN_A + ", " + RAISED_LEVEL);
+
+        assertEquals(Map.of(COLUMN_A, new Column(RAISED_LEVEL, false)), columnStates(LOWEST_LEVEL));
+    }
+
+    @Test
+    void anOlderColumnsTableWithoutTheLowestLevelHoldsItsColumnsFromTheFinestLevel() throws SQLException {
+        givenAnOlderColumnsTable("chunk INTEGER PRIMARY KEY", String.valueOf(COLUMN_A));
+
+        assertEquals(Map.of(COLUMN_A, new Column(DetailLevel.MIN, false)), columnStates(LOWEST_LEVEL));
+    }
+
+    @Test
+    void anOlderStoreWithoutAColumnsTableGainsAnEmptyOne() throws SQLException {
+        open(LOWEST_LEVEL).close();
+        execute("DROP TABLE columns");
+        execute("PRAGMA user_version = " + (StoreFormat.VERSION - 1));
+
+        assertTrue(columnStates(LOWEST_LEVEL).isEmpty());
+        assertEquals(1, readInt(COUNT_COLUMNS_TABLE));
+    }
+
+    @Test
+    void aColumnCoveredAgainAfterTheUpgradeComesBackCurrent() throws SQLException {
+        givenAnOlderColumnsTable("chunk INTEGER PRIMARY KEY, lowest INTEGER NOT NULL", COLUMN_A + ", " + LOWEST_LEVEL,
+                COLUMN_B + ", " + LOWEST_LEVEL);
+
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+        }
+
+        assertEquals(Map.of(COLUMN_A, new Column(LOWEST_LEVEL, true), COLUMN_B, new Column(LOWEST_LEVEL, false)),
+                columnStates(LOWEST_LEVEL));
     }
 
     @Test
@@ -378,7 +383,7 @@ class SqliteCellStoreTest {
         try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
             assertNull(store.read(cellAt(DetailLevel.MIN)));
             assertNotNull(store.read(cellAt(RAISED_LEVEL)));
-            store.readColumns(columns::put);
+            store.readColumns((chunk, lowestLevel, current) -> columns.put(chunk, lowestLevel));
         }
 
         assertEquals(Map.of(COLUMN_A, RAISED_LEVEL), columns);
@@ -516,11 +521,35 @@ class SqliteCellStoreTest {
 
     private Map<Long, Integer> columnsAt(int level) {
         Map<Long, Integer> columns = new HashMap<>();
+        columnStates(level).forEach((chunk, column) -> columns.put(chunk, column.lowestLevel()));
+        return columns;
+    }
+
+    private Map<Long, Column> columnStates(int level) {
+        Map<Long, Column> columns = new HashMap<>();
         try (SqliteCellStore store = open(level)) {
-            store.readColumns(columns::put);
+            store.readColumns((chunk, lowestLevel, current) -> columns.put(chunk, new Column(lowestLevel, current)));
         }
 
         return columns;
+    }
+
+    private void givenAnOlderColumnsTable(String fields, String... rows) throws SQLException {
+        open(LOWEST_LEVEL).close();
+        execute("DROP TABLE columns");
+        execute("CREATE TABLE columns (" + fields + ")");
+        for (String row : rows) {
+            execute("INSERT INTO columns VALUES (" + row + ")");
+        }
+
+        execute("PRAGMA user_version = " + (StoreFormat.VERSION - 1));
+    }
+
+    private static IntStream olderVersions() {
+        return IntStream.range(1, StoreFormat.VERSION);
+    }
+
+    private record Column(int lowestLevel, boolean current) {
     }
 
     private static Cell noisyCell(long key, Random random) {
