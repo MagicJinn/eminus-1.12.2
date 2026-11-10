@@ -87,9 +87,8 @@ dependencies {
     // The 'sodium:config_api_user' entrypoint class is likewise only ever asked for by Sodium.
     compileOnly files(sodiumModJars).asFileTree.matching { include '*.jar' }
 
-    // Not bundled: Fabric Loader carries MixinExtras itself and keeps the higher version, so a copy here is dropped
-    // at load and only weighs. No annotation processor and no refmap: Loom 1.17 defaults useLegacyMixinAp to false
-    // and remaps the mixin annotations inside remapJar instead.
+    // No annotation processor and no refmap: Loom defaults useLegacyMixinAp to false and remaps the mixin
+    // annotations inside remapJar instead.
     compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
 
     // The cell store's fixed stack; Loom wraps a plain library jar as a nested mod itself. The root lifts the wrapped
