@@ -246,7 +246,25 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public void buildOcclusion() {
-        opaque.buildPyramid(target);
+        occlude(target.depth());
+    }
+
+    public void buildOccluderOcclusion() {
+        GameFrame current = game;
+        if (current == null) {
+            return;
+        }
+
+        Texture depth = target.occluderDepth();
+        mask.draw(depth, target.color(), gpu.mainDepth(), farViewProjection, gameViewProjection);
+        opaque.drawOccluders(target, depth, arena, models, gpu.lightmap(),
+                FarQuads.atlasSampler(current.terrainFilter()), indirect.buffer(), commands.solidCount(),
+                frame.buffer());
+        occlude(depth);
+    }
+
+    private void occlude(Texture depth) {
+        opaque.buildPyramid(depth);
         Texture level = opaque.readLevel();
         GameFrame current = game;
         if (level != null && current != null) {
