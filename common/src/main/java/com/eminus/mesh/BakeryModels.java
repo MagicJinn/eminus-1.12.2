@@ -4,6 +4,7 @@ import com.eminus.cell.FaceMask;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelIndex;
+import com.eminus.model.ModelMetadata;
 import com.eminus.model.ModelSource;
 
 import net.minecraft.core.Direction;
@@ -71,7 +72,8 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     @Override
     public int solidFaces(int modelId) {
         BakedModel model = models.model(modelId);
-        return model == null ? FaceMask.NONE : model.solidFaces();
+        return model == null || ModelMetadata.has(model.metadata(), ModelMetadata.MOVED) ? FaceMask.NONE
+                : model.solidFaces();
     }
 
     @Override
