@@ -68,7 +68,7 @@ final class PackLayer {
     private int beamGlowAttached = NO_TEXTURE;
     private @Nullable FarDraw drawn;
     private @Nullable FarShadow shadowDrawn;
-    private boolean opaqueDepthCulls;
+    private FarDraw.@Nullable PackVertex opaqueVertex;
 
     private PackLayer(IrisRenderingPipeline pipeline, @Nullable ShaderPack pack, NamespacedId dimension) {
         this.pipeline = pipeline;
@@ -273,7 +273,7 @@ final class PackLayer {
 
         createFramebuffers(builtOpaque, builtTranslucent);
         PackPath.Source opaqueSource = chosen.source(PackProgram.Kind.OPAQUE);
-        opaqueDepthCulls = opaqueSource != null && opaqueSource.vertexStage() == FarDraw.PackVertex.OURS;
+        opaqueVertex = opaqueSource == null ? null : opaqueSource.vertexStage();
         opaque = builtOpaque;
         translucentFrontDepth = builtFrontDepth;
         translucentSecondDepth = builtSecondDepth;
@@ -390,7 +390,7 @@ final class PackLayer {
                 draw.previousProjection(), draw.farBlocks(), path.distantHorizons());
         opaqueAttached = attach(opaqueFramebuffer, opaqueAttached, depth);
         opaque.drawOpaque(draw, opaqueFramebuffer);
-        if (opaqueDepthCulls) {
+        if (opaqueVertex == FarDraw.PackVertex.OURS) {
             renderer.buildOcclusion();
         }
         if (beam != null && beamFramebuffer != null && draw.beamsDrawn()) {
