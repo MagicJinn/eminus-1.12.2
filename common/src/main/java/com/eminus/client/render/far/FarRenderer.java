@@ -237,7 +237,6 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public @Nullable FarDraw packFrame(Minecraft client) {
-        occlusion.forget();
         if (!stepped(client) || !terrainDrawn) {
             return null;
         }
@@ -246,7 +245,7 @@ public final class FarRenderer implements AutoCloseable {
         return draw;
     }
 
-    private void buildOcclusion() {
+    public void buildOcclusion() {
         opaque.buildPyramid(target);
         Texture level = opaque.readLevel();
         GameFrame current = game;
@@ -261,7 +260,6 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public @Nullable FarShadow shadowFrame(Minecraft client, Matrix4fc shadowView, Matrix4fc shadowProjection) {
-        occlusion.forget();
         if (!stepped(client) || !terrainDrawn || game == null) {
             return null;
         }

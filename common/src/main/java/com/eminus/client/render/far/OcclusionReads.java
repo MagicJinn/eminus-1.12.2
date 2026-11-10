@@ -66,11 +66,6 @@ final class OcclusionReads implements AutoCloseable {
                 && test.takenNear(eyeX, eyeY, eyeZ, MAX_EYE_SHIFT_BLOCKS) ? test : null;
     }
 
-    void forget() {
-        requested.clear();
-        loaded = false;
-    }
-
     private void take(Readback.Read read) {
         Requested match = null;
         while (!requested.isEmpty() && requested.peekFirst().sequence() <= read.sequence()) {
