@@ -118,6 +118,17 @@ class OcclusionTestTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
+    void aWallOneUlpBeforeTheBoxFaceLeavesItVisible(boolean reversed) {
+        Scene scene = Scene.of(reversed);
+        float face = scene.depthAt(50.0F);
+        float[] texels = scene.wall(50.0F);
+        Arrays.fill(texels, reversed ? Math.nextUp(face) : Math.nextDown(face));
+
+        assertFalse(scene.test(texels).hidden(BEHIND));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     void aTestHoldsOnlyNearTheEyeItWasTakenFrom(boolean reversed) {
         Scene scene = Scene.of(reversed);
         OcclusionTest test = scene.test(scene.wall(WALL));

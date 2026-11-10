@@ -14,6 +14,7 @@ public final class OcclusionTest {
     private static final float HALF = 0.5F;
     private static final float NDC_LOW = -1.0F;
     private static final float NDC_HIGH = 1.0F;
+    private static final int DEPTH_MARGIN_ULPS = 16;
 
     private final DepthConvention depth;
     private final int blockPixels;
@@ -97,6 +98,8 @@ public final class OcclusionTest {
             return false;
         }
 
+        float margin = DEPTH_MARGIN_ULPS * Math.ulp(nearest);
+        nearest = depth.reversed() ? nearest + margin : nearest - margin;
         int firstX = texel(minX, pixelWidth, texelWidth);
         int lastX = texel(maxX, pixelWidth, texelWidth);
         int firstY = texel(minY, pixelHeight, texelHeight);
