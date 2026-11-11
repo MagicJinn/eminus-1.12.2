@@ -1,0 +1,92 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+}
+
+version = eminus_version
+group = mod_group_id
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+repositories {
+    mavenCentral()
+}
+
+def coreIncludes = [
+        'com/eminus/Eminus.java',
+        'com/eminus/MixinGatePlugin.java',
+        'com/eminus/gpu/**',
+        'com/eminus/api/v1/FarBox.java',
+        'com/eminus/api/v1/FarBoxGroup.java',
+        'com/eminus/api/v1/FarLayerState.java',
+        'com/eminus/api/v1/FarLayerStatus.java',
+        'com/eminus/api/v1/package-info.java',
+        'com/eminus/box/**',
+        'com/eminus/work/**',
+        'com/eminus/platform/**',
+        'com/eminus/settings/**',
+        'com/eminus/compat/*.java',
+        'com/eminus/beam/Beam.java',
+        'com/eminus/beam/BeamRecord.java',
+        'com/eminus/beam/BeamSection.java',
+        'com/eminus/beam/BeamSnapshot.java',
+        'com/eminus/beam/BeamStore.java',
+        'com/eminus/mesh/Quad.java',
+        'com/eminus/cell/Cell.java',
+        'com/eminus/cell/DetailLevel.java',
+        'com/eminus/cell/Dictionary.java',
+        'com/eminus/cell/IdTable.java',
+        'com/eminus/cell/OccupancyMask.java',
+        'com/eminus/cell/StateLayers.java',
+        'com/eminus/cell/StateOpacity.java',
+        'com/eminus/cell/VoxelEntry.java',
+]
+
+def coreTests = [
+        'com/eminus/box/BoxRecordsTest.java',
+        'com/eminus/box/BoxRegistryTest.java',
+        'com/eminus/cell/DictionaryTest.java',
+        'com/eminus/cell/VoxelEntryTest.java',
+        'com/eminus/cell/IdTableTest.java',
+]
+
+sourceSets {
+    main {
+        java {
+            setSrcDirs(['../common/src/main/java'])
+            coreIncludes.each { include it }
+        }
+    }
+    test {
+        java {
+            setSrcDirs(['../common/src/test/java'])
+            coreTests.each { include it }
+        }
+    }
+}
+
+dependencies {
+    implementation 'it.unimi.dsi:fastutil:8.5.15'
+    implementation 'org.slf4j:slf4j-api:2.0.16'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'org.joml:joml:1.10.8'
+    compileOnly 'org.jspecify:jspecify:1.0.0'
+    compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+    compileOnly "com.uber.nullaway:nullaway-annotations:${nullaway_version}"
+
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.16'
+}
+
+test {
+    useJUnitPlatform()
+    filter {
+        failOnNoMatchingTests = false
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

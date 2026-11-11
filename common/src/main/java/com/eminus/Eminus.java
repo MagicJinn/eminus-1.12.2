@@ -1,13 +1,12 @@
 package com.eminus;
 
 import org.slf4j.Logger;
-
-import com.mojang.logging.LogUtils;
+import org.slf4j.LoggerFactory;
 
 public final class Eminus {
     public static final String MODID = "eminus";
     public static final String NAME = "Eminus";
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LoggerFactory.getLogger(Eminus.class);
 
     private Eminus() {
     }

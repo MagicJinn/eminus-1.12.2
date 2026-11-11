@@ -1,0 +1,84 @@
+plugins {
+    id 'java-library'
+    id 'com.gtnewhorizons.retrofuturagradle'
+}
+
+apply from: rootProject.file('cleanroom/rfg-helpers.gradle')
+
+version = propertyString('mod_version')
+group = propertyString('root_package')
+
+base {
+    archivesName = propertyString('mod_id')
+}
+
+def useJava25 = propertyBool('use_java25_bytecode')
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(useJava25 ? 25 : (propertyBool('use_modern_java_syntax') ? 16 : 8))
+        vendor = JvmVendorSpec.AZUL
+    }
+}
+
+minecraft {
+    mcVersion.set('1.12.2')
+    mcpMappingChannel.set(propertyString('mapping_channel'))
+    mcpMappingVersion.set(propertyString('mapping_version'))
+    useDependencyAccessTransformers.set(propertyBool('use_dependency_at_files'))
+    username.set(propertyString('minecraft_username'))
+    extraTweakClasses.addAll(propertyStringList('extra_tweak_classes'))
+    extraRunJvmArguments.addAll('-ea:' + group)
+    extraRunJvmArguments.addAll(propertyStringList('extra_jvm_args'))
+}
+
+repositories {
+    maven {
+        name = 'CleanroomMC Maven'
+        url = 'https://maven.cleanroommc.com'
+    }
+}
+
+dependencies {
+    if (useJava25) {
+        implementation project(':core')
+    }
+
+    if (propertyBool('use_modern_java_syntax') && !useJava25) {
+        annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        annotationProcessor 'net.java.dev.jna:jna-platform:5.13.0'
+        compileOnly('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
+            transitive = false
+        }
+        patchedMinecraft 'me.eigenraven.java8unsupported:java-8-unsupported-shim:1.0.0'
+    }
+}
+
+processResources {
+    inputs.property 'mod_id', propertyString('mod_id')
+    inputs.property 'mod_name', propertyString('mod_name')
+    inputs.property 'mod_version', propertyString('mod_version')
+
+    filesMatching('mcmod.info') {
+        expand(
+                'mod_id': propertyString('mod_id'),
+                'mod_name': propertyString('mod_name'),
+                'mod_version': propertyString('mod_version'),
+        )
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    if (propertyBool('use_modern_java_syntax') && !useJava25) {
+        if (name in ['compileMcLauncherJava', 'compilePatchedMcJava']) {
+            return
+        }
+        sourceCompatibility = '17'
+        options.release.set(8)
+        javaCompiler.set(javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.of(16))
+            vendor.set(JvmVendorSpec.AZUL)
+        })
+    }
+}

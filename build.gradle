@@ -10,6 +10,9 @@ plugins {
 // API deprecated on one game line is still the only one on another.
 subprojects {
     pluginManager.withPlugin('java') {
+        if (project.name == 'cleanroom') {
+            return
+        }
         pluginManager.apply('net.ltgt.errorprone')
 
         dependencies {

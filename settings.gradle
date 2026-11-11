@@ -5,12 +5,21 @@ pluginManagement {
             name = 'FabricMC'
             url = 'https://maven.fabricmc.net/'
         }
+        maven {
+            name = 'GTNH Maven'
+            url = 'https://nexus.gtnewhorizons.com/repository/public/'
+            mavenContent {
+                includeGroup 'com.gtnewhorizons'
+                includeGroup 'com.gtnewhorizons.retrofuturagradle'
+            }
+        }
     }
 
     plugins {
         id 'net.neoforged.moddev' version '2.0.148'
         id 'net.fabricmc.fabric-loom' version "${fabric_loom_version}"
         id 'net.ltgt.errorprone' version '5.1.1'
+        id 'com.gtnewhorizons.retrofuturagradle' version '2.0.2'
     }
 }
 
@@ -23,3 +32,13 @@ rootProject.name = 'eminus'
 include 'common'
 include 'neoforge'
 include 'fabric'
+include 'core'
+
+def vetusRequested = providers.gradleProperty('enable_eminus_vetus').orElse('false').get() == 'true'
+def javaSpec = System.getProperty('java.version')
+def vetusJvmMajor = javaSpec.startsWith('25')
+        || javaSpec.startsWith('26')
+        || (javaSpec.split('\\.')[0].isInteger() && javaSpec.split('\\.')[0].toInteger() >= 25)
+if (vetusRequested || vetusJvmMajor) {
+    include 'cleanroom'
+}
