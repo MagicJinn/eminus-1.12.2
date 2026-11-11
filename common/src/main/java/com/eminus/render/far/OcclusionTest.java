@@ -14,6 +14,8 @@ public final class OcclusionTest {
     private static final float HALF = 0.5F;
     private static final float NDC_LOW = -1.0F;
     private static final float NDC_HIGH = 1.0F;
+    private static final float NDC_SPAN = NDC_HIGH - NDC_LOW;
+    private static final int DEPTH_MARGIN_ULPS = 16;
 
     private final DepthConvention depth;
     private final int blockPixels;
@@ -24,6 +26,7 @@ public final class OcclusionTest {
     private int texelHeight;
     private int pixelWidth;
     private int pixelHeight;
+    private int guardPixels;
     private double eyeX;
     private double eyeY;
     private double eyeZ;
@@ -35,7 +38,7 @@ public final class OcclusionTest {
     }
 
     public void load(ByteBuffer farthest, int texelWidth, int texelHeight, int pixelWidth, int pixelHeight,
-            Matrix4fc viewProjection, double eyeX, double eyeY, double eyeZ, long frame) {
+            int guardPixels, Matrix4fc viewProjection, double eyeX, double eyeY, double eyeZ, long frame) {
         int count = texelWidth * texelHeight;
         if (texels.length != count) {
             texels = new float[count];
@@ -48,6 +51,7 @@ public final class OcclusionTest {
         this.texelHeight = texelHeight;
         this.pixelWidth = pixelWidth;
         this.pixelHeight = pixelHeight;
+        this.guardPixels = guardPixels;
         this.viewProjection.set(viewProjection);
         this.eyeX = eyeX;
         this.eyeY = eyeY;
@@ -97,10 +101,14 @@ public final class OcclusionTest {
             return false;
         }
 
-        int firstX = texel(minX, pixelWidth, texelWidth);
-        int lastX = texel(maxX, pixelWidth, texelWidth);
-        int firstY = texel(minY, pixelHeight, texelHeight);
-        int lastY = texel(maxY, pixelHeight, texelHeight);
+        float margin = DEPTH_MARGIN_ULPS * Math.ulp(nearest);
+        nearest = depth.reversed() ? nearest + margin : nearest - margin;
+        float guardX = NDC_SPAN * guardPixels / pixelWidth;
+        float guardY = NDC_SPAN * guardPixels / pixelHeight;
+        int firstX = texel(minX - guardX, pixelWidth, texelWidth);
+        int lastX = texel(maxX + guardX, pixelWidth, texelWidth);
+        int firstY = texel(minY - guardY, pixelHeight, texelHeight);
+        int lastY = texel(maxY + guardY, pixelHeight, texelHeight);
         for (int y = firstY; y <= lastY; y++) {
             for (int x = firstX; x <= lastX; x++) {
                 if (!nearer(texels[y * texelWidth + x], nearest)) {
