@@ -20,7 +20,19 @@ public final class VetusChunkColumnSink implements ChunkColumnSink {
             return;
         }
         Chunk chunk = client.world.getChunk(column.chunkX(), column.chunkZ());
-        if (chunk == null || chunk.isEmpty()) {
+        if (chunk == null) {
+            return;
+        }
+        onColumnAvailable(column, trigger, chunk);
+    }
+
+    void onColumnAvailable(ColumnRef column, IngestTrigger trigger, Chunk chunk) {
+        Minecraft client = Minecraft.getMinecraft();
+        if (client.world == null) {
+            return;
+        }
+        if (!VetusColumnIngest.hasReceivedPacketData(chunk)) {
+            VetusIngestScheduler.schedule(column);
             return;
         }
         ingest.onColumnAvailable(client.world, chunk, column, trigger);

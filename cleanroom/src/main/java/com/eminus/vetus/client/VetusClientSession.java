@@ -24,7 +24,7 @@ public final class VetusClientSession {
         sectionHandoffs++;
         if (sectionHandoffs == 1 || sectionHandoffs % 64 == 0) {
             long samples = pyramid.level(com.eminus.cell.DetailLevel.MIN).length;
-            EminusVetus.LOGGER.info(
+            EminusVetus.LOGGER.debug(
                     "Vetus merged section {} of column {},{} dim {} into CellMerger handoff ({} voxels, trigger {}, total {})",
                     sectionIndex,
                     column.chunkX(),

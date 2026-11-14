@@ -173,7 +173,8 @@ export JAVA_HOME=/path/to/jdk-25
 
 | Piece | Location | Behavior |
 |-------|----------|----------|
-| Chunk ingest | `VetusClientEvents.onChunkLoad` (client bus, `world.isRemote`) | `VetusChunkColumnSink` runs upstream `SectionSliceConverter` and `PyramidDownsampler` per section (INFO logs) |
+| Chunk ingest | `NetHandlerPlayClientMixin` after `handleChunkData` (primary), `ChunkEvent.Load` schedules deferred ingest | `VetusChunkColumnSink` runs upstream `SectionSliceConverter` and `PyramidDownsampler` when section storage is allocated |
+| Ingest summary | `VetusIngestSummary` every 5s | INFO totals for columns and sections. Per-column lines are DEBUG only |
 | Chunk unload | `onChunkUnload` | `VetusColumnIngest.onColumnUnavailable` |
 | Far render hook | `EntityRendererFarMixin` after opaque `renderBlockLayer` in pass 0 | Calls `VetusClientSession.drawFarLayer()` inside `VetusGlStateGuard` |
 | Shader guard | `OptiFineShaderEnvironment` | Reflective OptiFine / Shaders Mod detection. Disables far LOD and logs a warning |

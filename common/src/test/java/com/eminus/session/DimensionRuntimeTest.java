@@ -116,7 +116,8 @@ class DimensionRuntimeTest {
                 new WorldIdentity(WORLD, SEED, DIMENSION), folder, new CellFrame(MIN_BLOCK_Y), lowestStoredLevel);
         runtime.createFolder();
         runtime.openStore(clock::get);
-        runtime.openCells(parked.register("save", 1, WorkService.UNLIMITED, () -> null),
+        runtime.openCells(ModernSessionCells.INSTANCE,
+                parked.register("save", 1, WorkService.UNLIMITED, () -> null),
                 parked.register("ingest", 1, WorkService.UNLIMITED, SectionPyramid::new), clock::get);
     }
 

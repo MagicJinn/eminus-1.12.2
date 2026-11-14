@@ -9,6 +9,7 @@ import com.eminus.ingest.IngestTrigger;
 import com.eminus.ingest.PyramidDownsampler;
 import com.eminus.ingest.SectionPyramid;
 import com.eminus.ingest.SectionSliceConverter;
+import com.eminus.ingest.port.ColumnIngestReadiness;
 import com.eminus.ingest.port.ColumnRef;
 import com.eminus.vetus.EminusVetus;
 
@@ -21,13 +22,14 @@ import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
  * {@link PyramidDownsampler}. Cell merge and mesh build wire in {@link com.eminus.vetus.client.VetusClientSession}.
  */
 public final class VetusColumnIngest {
-    private static final int LOG_EVERY = 16;
     private final VetusStateLookup stateLookup = new VetusStateLookup();
     private final Dictionary<String> biomes = new Dictionary<>((id, value) -> { });
     private final VetusStubStateTraits stateTraits = new VetusStubStateTraits();
-    private int ingestedColumns;
-
     public void onColumnAvailable(World world, Chunk chunk, ColumnRef column, IngestTrigger trigger) {
+        if (!hasReceivedPacketData(chunk)) {
+            VetusIngestScheduler.schedule(column);
+            return;
+        }
         ExtendedBlockStorage[] sections = chunk.getBlockStorageArray();
         int converted = 0;
         for (int index = 0; index < sections.length; index++) {
@@ -44,23 +46,55 @@ public final class VetusColumnIngest {
             com.eminus.vetus.client.VetusClientSession.ingestSection(column, index, pyramid, trigger);
         }
 
-        ingestedColumns++;
-        if (ingestedColumns == 1 || ingestedColumns % LOG_EVERY == 0) {
-            EminusVetus.LOGGER.info(
-                    "[{}/ingest] column {},{} dim {} trigger {} sections {} (count {})",
-                    Eminus.MODID,
-                    column.chunkX(),
-                    column.chunkZ(),
-                    column.dimensionId(),
-                    trigger,
-                    converted,
-                    ingestedColumns);
+        VetusIngestSummary.record(converted);
+        EminusVetus.LOGGER.debug(
+                "[{}/ingest] column {},{} dim {} trigger {} sections {}",
+                Eminus.MODID,
+                column.chunkX(),
+                column.chunkZ(),
+                column.dimensionId(),
+                trigger,
+                converted);
+    }
+
+    /**
+     * Client chunks exist before {@code SPacketChunkData} applies {@code Chunk.read}. All-null storage means wait.
+     */
+    public static boolean hasReceivedPacketData(Chunk chunk) {
+        return ColumnIngestReadiness.hasAllocatedSection(wrapSections(chunk.getBlockStorageArray()));
+    }
+
+    public static int countNonemptySections(Chunk chunk) {
+        return ColumnIngestReadiness.countNonemptySections(wrapSections(chunk.getBlockStorageArray()));
+    }
+
+    private static ColumnIngestReadiness.SectionSlot[] wrapSections(ExtendedBlockStorage[] sections) {
+        if (sections == null) {
+            return new ColumnIngestReadiness.SectionSlot[0];
         }
+        ColumnIngestReadiness.SectionSlot[] wrapped = new ColumnIngestReadiness.SectionSlot[sections.length];
+        for (int i = 0; i < sections.length; i++) {
+            final int idx = i;
+            wrapped[i] = new ColumnIngestReadiness.SectionSlot() {
+                @Override
+                public boolean allocated() {
+                    return sections[idx] != null;
+                }
+
+                @Override
+                public boolean empty() {
+                    ExtendedBlockStorage slot = sections[idx];
+                    return slot == null || slot.isEmpty();
+                }
+            };
+        }
+        return wrapped;
     }
 
     public void onColumnUnavailable(ColumnRef column) {
+        VetusIngestScheduler.drop(column);
         com.eminus.vetus.client.VetusClientSession.dropColumn(column);
-        EminusVetus.LOGGER.info(
+        EminusVetus.LOGGER.debug(
                 "[{}/ingest] column {},{} dim {} unavailable",
                 Eminus.MODID,
                 column.chunkX(),

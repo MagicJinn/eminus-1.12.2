@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import com.eminus.VanillaBootstrap;
+import com.eminus.geom.Face;
 import com.eminus.model.port.ModelQuad;
 
 import net.minecraft.core.Direction;
@@ -58,10 +59,11 @@ class FaceShadeTest {
         assertEquals(ownBut(Direction.UP, Direction.DOWN, Direction.UP), model.shades());
     }
 
+    @SuppressWarnings("EnumOrdinal")
     private static int ownBut(Direction shade, Direction... faces) {
-        Direction[] shades = Direction.values();
+        Face[] shades = Face.values();
         for (Direction face : faces) {
-            shades[face.get3DDataValue()] = shade;
+            shades[face.get3DDataValue()] = Face.fromVanillaIndex(shade.ordinal());
         }
         return BakedModel.packShades(shades);
     }

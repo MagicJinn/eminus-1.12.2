@@ -44,7 +44,7 @@ public final class VetusClientEvents {
         Chunk chunk = event.getChunk();
         int dimension = event.getWorld().provider.getDimension();
         ColumnRef column = new ColumnRef(chunk.x, chunk.z, dimension);
-        VetusClientState.chunkIngest().onColumnAvailable(column, IngestTrigger.PACKET);
+        com.eminus.vetus.ingest.VetusIngestScheduler.schedule(column);
     }
 
     @SubscribeEvent
@@ -55,7 +55,9 @@ public final class VetusClientEvents {
 
         Chunk chunk = event.getChunk();
         int dimension = event.getWorld().provider.getDimension();
-        VetusClientState.chunkIngest().onColumnUnavailable(new ColumnRef(chunk.x, chunk.z, dimension));
+        ColumnRef column = new ColumnRef(chunk.x, chunk.z, dimension);
+        com.eminus.vetus.ingest.VetusIngestScheduler.drop(column);
+        VetusClientState.chunkIngest().onColumnUnavailable(column);
     }
 
     @SubscribeEvent
@@ -64,6 +66,7 @@ public final class VetusClientEvents {
             return;
         }
 
+        com.eminus.vetus.ingest.VetusIngestScheduler.clientTick();
         VetusClientState.farLayerAllowed();
     }
 
