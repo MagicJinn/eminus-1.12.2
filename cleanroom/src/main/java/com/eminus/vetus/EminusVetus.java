@@ -22,6 +22,7 @@ public final class EminusVetus {
     public static final String VERSION = Tags.VERSION;
     public static final Logger LOGGER = LogManager.getLogger(MODID);
 
-    private EminusVetus() {
+    /** Forge/Cleanroom FML loads the mod via a public no-arg constructor. */
+    public EminusVetus() {
     }
 }
