@@ -15,7 +15,7 @@ import com.eminus.session.DimensionRuntime;
 
 import org.joml.Matrix4fc;
 
-final class FarOverlays implements AutoCloseable {
+public final class FarOverlays implements AutoCloseable {
     private final BoxPass boxes;
     private final BeamPass beams;
 

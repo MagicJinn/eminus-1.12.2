@@ -3,7 +3,6 @@ package com.eminus.mesh;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateOpacity;
-import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
 
 import net.minecraft.core.Direction;
@@ -42,7 +41,7 @@ public final class RowMasks {
                     continue;
                 }
 
-                if (opacity.opacity(state) >= StateTable.FULL_OPACITY) {
+                if (opacity.opacity(state) >= 15) {
                     opaqueBits |= bit;
                 } else if (opacity.coversGround(entry, voxelBlocks)) {
                     opaqueBits |= bit;

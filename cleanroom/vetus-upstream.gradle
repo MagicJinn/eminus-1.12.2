@@ -1,0 +1,17 @@
+def vetusUpstreamIncludes = file("${projectDir}/vetus-upstream-includes.txt")
+        .readLines()
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+
+def vetusCommonJava = rootProject.layout.projectDirectory.dir('common/src/main/java')
+def vetusUpstreamTree = objects.fileCollection().from({ ->
+    vetusUpstreamIncludes.collect { rel ->
+        vetusCommonJava.file(rel)
+    }
+})
+
+afterEvaluate {
+    tasks.named('compileJava', JavaCompile).configure {
+        source(vetusUpstreamTree)
+    }
+}

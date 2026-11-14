@@ -185,7 +185,7 @@ export JAVA_HOME=/path/to/jdk-25
 |------|------|
 | `VetusHandles` (`GameHandles` in `cleanroom`, excluded from embedded core) | Maps main FBO, textures, and GL state to 1.12.2 `GlStateManager` for `OpenGlGpu`. |
 | `VetusGameFrames` | Reads `GameFrame` from `Minecraft` player and fog for far culling later. |
-| `VetusFarClientBridge` | Shell bridge until `FarClientBridge` and GPU far types bundle on `:core`. |
+| `VetusFarClientBridge` | Full `FarClientBridge` with `VetusGameFrames`, `VetusDrawnSections`, and `ClientBakery.placeholder`. |
 | `VetusGlStateGuard` | Saves and restores FBO, viewport, textures, program, VAO, and buffers around the far pass. |
 | `PlaceholderModelSource` + `ClientBakery.placeholder` | Magenta placeholder atlas via upstream `FarStart.createBakery`. |
 | `BeamPass` + `BeamChunkHeld` | Loader-neutral beam culling without `ClientLevel` on the core compile path. |
@@ -196,7 +196,9 @@ export JAVA_HOME=/path/to/jdk-25
 | `Floors` | Shared floor int math for far culling without `Mth` on core-only builds. |
 | `EntityRendererFarMixin` | Production render anchor after opaque terrain (pass 0). |
 
-Ingest previously stayed silent because `VetusChunkColumnSink` logged at DEBUG while vanilla default is INFO.
+**ChunkEvent.Load timing:** `ChunkProviderClient.loadChunk` fires Load before `SPacketChunkData` calls `Chunk.read`, so all-null section arrays produced `sections 0` on every column. Ingest runs after packet apply or when `ColumnIngestReadiness.hasAllocatedSection` is true.
+
+**Far stack on vetus:** Cleanroom compiles an upstream slice listed in `cleanroom/vetus-upstream-includes.txt` (far renderer, OpenGL GPU, session, mesh build) plus `cleanroom/src/shim` and `cleanroom/src/stub`. `VetusClientSession` runs `EminusInstance` with `SessionCells.DICTIONARY`, `CellMerger.merge` on ingest, and `FarStart` / `FarRenderer.frame()` inside `VetusGlStateGuard`.
 
 ### Render hook choice (1.12.2)
 

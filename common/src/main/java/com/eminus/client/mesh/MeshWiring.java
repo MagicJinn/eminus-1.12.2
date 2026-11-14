@@ -5,7 +5,6 @@ import com.eminus.cell.StateTable;
 import com.eminus.mesh.PlaceholderMeshModels;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.render.far.FarClientBridge;
-import com.eminus.client.render.far.ModernFarClientBridge;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.BakeryTints;
@@ -23,8 +22,6 @@ import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
-import net.minecraft.client.Minecraft;
-
 public final class MeshWiring {
     public static MeshService service(FarClientBridge bridge, DimensionRuntime runtime, EminusInstance instance,
             ClientBakery baking, MeshListener listener) {
@@ -35,18 +32,14 @@ public final class MeshWiring {
                 blades(baking.grassAndFlowers()), listener, EminusInstance.URGENT_BUILD_WEIGHT);
     }
 
-    public static MeshService service(Minecraft client, DimensionRuntime runtime, EminusInstance instance,
-            ClientBakery baking, MeshListener listener) {
-        return service(new ModernFarClientBridge(client), runtime, instance, baking, listener);
-    }
-
     public static MeshBlades blades(GrassAndFlowers grassAndFlowers) {
         return grassAndFlowers == GrassAndFlowers.SIMPLIFIED ? MeshBlades.ONE : MeshBlades.BOTH;
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {
         CellStates states = runtime.states();
-        if (states instanceof StateTable table && baking.bakery() instanceof com.eminus.model.ModelBakery bakery) {
+        if (states instanceof com.eminus.cell.StateTable table
+                && baking.bakery() instanceof com.eminus.model.ModelBakery bakery) {
             return new BakeryModels(new ModelIndex(table, bakery), bakery);
         }
         return new PlaceholderMeshModels(baking.bakery());

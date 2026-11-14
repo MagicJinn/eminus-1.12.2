@@ -49,7 +49,7 @@ public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal)
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
-                ModelPublisher.start(gpu, ((com.eminus.model.ModelBakery) baking.bakery()), FarRenderer.atlasFirstMip(settings.lodQuality())), arena,
+                ModelPublisher.start(gpu, baking.bakery(), FarRenderer.atlasFirstMip(settings.lodQuality())), arena,
                 FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
                         main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, overlays,

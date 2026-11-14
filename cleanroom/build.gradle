@@ -5,6 +5,8 @@ plugins {
 
 apply from: rootProject.file('cleanroom/rfg-helpers.gradle')
 
+def nullaway_version = rootProject.findProperty('nullaway_version') ?: '0.14.2'
+
 version = propertyString('mod_version')
 group = propertyString('root_package')
 
@@ -13,6 +15,16 @@ base {
 }
 
 def useJava25 = propertyBool('use_java25_bytecode')
+
+apply from: rootProject.file('cleanroom/vetus-upstream.gradle')
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/stub/java', 'src/shim/java', 'src/main/java'
+        }
+    }
+}
 
 java {
     toolchain {
@@ -55,6 +67,14 @@ dependencies {
         vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
         implementation 'org.xerial:sqlite-jdbc:3.47.2.0'
         implementation 'io.airlift:aircompressor:0.27'
+        implementation platform('org.lwjgl:lwjgl-bom:3.3.3')
+        implementation 'org.lwjgl:lwjgl'
+        implementation 'org.lwjgl:lwjgl-opengl'
+        runtimeOnly 'org.lwjgl:lwjgl::natives-linux'
+        compileOnly 'org.jspecify:jspecify:1.0.0'
+        compileOnly "com.uber.nullaway:nullaway-annotations:${nullaway_version}"
+        implementation 'it.unimi.dsi:fastutil:8.5.15'
+        implementation 'org.slf4j:slf4j-api:2.0.16'
         if (propertyBool('use_mixins')) {
             compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
             annotationProcessor "net.fabricmc:sponge-mixin:${mixin_version}"
@@ -92,6 +112,7 @@ processResources {
 tasks.named('jar', Jar) {
     if (useJava25) {
         dependsOn ':core:classes'
+        from sourceSets.main.output
         from project(':core').sourceSets.main.output
         exclude 'com/eminus/client/gpu/opengl/GameHandles.class'
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -136,6 +157,20 @@ def vetusJarRequiredCoreClasses = [
         'com/eminus/cell/DictionaryStateTable.class',
 ]
 
+def vetusJarRequiredFarClasses = [
+        'com/eminus/client/render/far/FarRenderer.class',
+        'com/eminus/client/render/far/FarStart.class',
+        'com/eminus/client/gpu/opengl/OpenGlGpu.class',
+]
+
+def vetusJarAllowedMinecraftShims = [
+        'net/minecraft/core/Direction.class',
+        'net/minecraft/core/Direction$Axis.class',
+        'net/minecraft/core/Direction$AxisDirection.class',
+        'net/minecraft/util/Mth.class',
+        'net/minecraft/world/level/block/state/BlockState.class',
+]
+
 def vetusJarTask = tasks.named('jar', Jar)
 
 tasks.register('verifyVetusJarContents') {
@@ -160,6 +195,18 @@ tasks.register('verifyVetusJarContents') {
                     "Vetus jar ${jarFile.name} is missing required core classes: ${missingRequired}")
         }
 
+        def missingFar = vetusJarRequiredFarClasses.findAll { !jarEntries.contains(it) }
+        if (!missingFar.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required far stack classes: ${missingFar}")
+        }
+
+        def missingShims = vetusJarAllowedMinecraftShims.findAll { !jarEntries.contains(it) }
+        if (!missingShims.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required minecraft shims: ${missingShims}")
+        }
+
         def coreClassesDir = coreClassesDirProvider.get().asFile
         if (!coreClassesDir.isDirectory()) {
             throw new GradleException("Core classes directory missing: ${coreClassesDir}")
@@ -180,8 +227,12 @@ tasks.register('verifyVetusJarContents') {
                     "Vetus jar ${jarFile.name} is missing ${missingCore.size()} core classes, first: ${missingCore.take(5)}")
         }
 
+        def allowedMinecraft = vetusJarAllowedMinecraftShims.toSet()
         def forbiddenPrefixes = ['net/minecraft/', 'net/minecraftforge/']
         def leaked = jarEntries.findAll { name ->
+            if (allowedMinecraft.contains(name)) {
+                return false
+            }
             forbiddenPrefixes.any { prefix -> name.startsWith(prefix) && name.endsWith('.class') }
         }
         if (!leaked.isEmpty()) {

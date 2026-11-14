@@ -34,7 +34,7 @@ public final class VetusGlStateGuard implements AutoCloseable {
         Framebuffer main = Minecraft.getMinecraft().getFramebuffer();
         framebuffer = main.framebufferObject;
         IntBuffer viewportBuffer = BufferUtils.createIntBuffer(4);
-        GL11.glGetInteger(GL11.GL_VIEWPORT, viewportBuffer);
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewportBuffer);
         viewportBuffer.get(viewport);
         activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
         program = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
