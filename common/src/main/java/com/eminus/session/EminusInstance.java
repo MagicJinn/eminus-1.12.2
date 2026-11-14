@@ -37,22 +37,30 @@ public final class EminusInstance {
     private final Map<WorldIdentity, DimensionRuntime> runtimes = new HashMap<>();
     private final Set<WorldIdentity> closing = new HashSet<>();
     private final WorldCleaner cleaner = new WorldCleaner(this);
+    private final SessionCells sessionCells;
 
     private boolean running = true;
 
-    private EminusInstance(Path storeBase, int lowestStoredLevel, LongSupplier clock, WorkerPool pool) {
+    private EminusInstance(Path storeBase, int lowestStoredLevel, LongSupplier clock, WorkerPool pool,
+            SessionCells sessionCells) {
         this.storeBase = storeBase;
         this.lowestStoredLevel = lowestStoredLevel;
         this.clock = clock;
         this.pool = pool;
+        this.sessionCells = sessionCells;
         ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, SectionPyramid::new);
         save = pool.register(SAVE_SERVICE, SAVE_WEIGHT, WorkService.UNLIMITED, () -> null);
         build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, MeshScratch::new);
     }
 
     public static EminusInstance start(Path storeBase, int threadCount, int lowestStoredLevel, LongSupplier clock) {
+        return start(storeBase, threadCount, lowestStoredLevel, clock, ModernSessionCells.INSTANCE);
+    }
+
+    public static EminusInstance start(Path storeBase, int threadCount, int lowestStoredLevel, LongSupplier clock,
+            SessionCells sessionCells) {
         EminusInstance instance =
-                new EminusInstance(storeBase, lowestStoredLevel, clock, WorkerPool.start(threadCount));
+                new EminusInstance(storeBase, lowestStoredLevel, clock, WorkerPool.start(threadCount), sessionCells);
         instance.cleaner.start();
         Eminus.LOGGER.info("Session started on {} worker threads, store under {}", threadCount, storeBase);
         return instance;
@@ -60,6 +68,10 @@ public final class EminusInstance {
 
     public Path storeBase() {
         return storeBase;
+    }
+
+    public WorkService<SectionPyramid> ingest() {
+        return ingest;
     }
 
     public WorkService<MeshScratch> build() {
@@ -186,7 +198,7 @@ public final class EminusInstance {
                 StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY), lowestStoredLevel);
         runtime.createFolder();
         runtime.openStore(clock);
-        runtime.openCells(save, ingest, clock);
+        runtime.openCells(sessionCells, save, ingest, clock);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;
     }

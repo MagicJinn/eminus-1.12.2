@@ -5,7 +5,7 @@ import java.util.Arrays;
 import com.eminus.Eminus;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
-import com.eminus.model.ModelBakery;
+import com.eminus.model.ModelSource;
 
 public final class ModelPublisher implements AutoCloseable {
     public static final int START_ATLAS_CELLS_PER_SIDE = 4;
@@ -15,7 +15,7 @@ public final class ModelPublisher implements AutoCloseable {
     private static final int GROWTH = 2;
 
     private final Gpu gpu;
-    private final ModelBakery bakery;
+    private final ModelSource bakery;
     private ModelAtlas atlas;
     private ModelRecords records;
     private ModelVariants variants;
@@ -27,7 +27,7 @@ public final class ModelPublisher implements AutoCloseable {
     private int reuploaded;
     private boolean atlasFull;
 
-    private ModelPublisher(Gpu gpu, ModelBakery bakery, ModelAtlas atlas, ModelRecords records,
+    private ModelPublisher(Gpu gpu, ModelSource bakery, ModelAtlas atlas, ModelRecords records,
             ModelVariants variants) {
         this.gpu = gpu;
         this.bakery = bakery;
@@ -36,7 +36,7 @@ public final class ModelPublisher implements AutoCloseable {
         this.variants = variants;
     }
 
-    public static ModelPublisher start(Gpu gpu, ModelBakery bakery, int atlasFirstMip) {
+    public static ModelPublisher start(Gpu gpu, ModelSource bakery, int atlasFirstMip) {
         gpu.assertRenderThread();
         return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_ATLAS_CELLS_PER_SIDE, atlasFirstMip),
                 ModelRecords.create(gpu, START_RECORDS), ModelVariants.create(gpu, START_VARIANTS));

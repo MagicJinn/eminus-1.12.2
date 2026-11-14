@@ -2,7 +2,7 @@ package com.eminus.cell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import net.minecraft.core.Direction;
+import com.eminus.geom.Face;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +12,12 @@ class FaceMaskTest {
 
     @Test
     void eachBitSitsAtItsDirectionOrdinal() {
-        assertEquals(Direction.DOWN.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.DOWN));
-        assertEquals(Direction.UP.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.UP));
-        assertEquals(Direction.NORTH.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.NORTH));
-        assertEquals(Direction.SOUTH.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.SOUTH));
-        assertEquals(Direction.WEST.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.WEST));
-        assertEquals(Direction.EAST.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.EAST));
+        assertEquals(Face.DOWN.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.DOWN));
+        assertEquals(Face.UP.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.UP));
+        assertEquals(Face.NORTH.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.NORTH));
+        assertEquals(Face.SOUTH.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.SOUTH));
+        assertEquals(Face.WEST.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.WEST));
+        assertEquals(Face.EAST.vanillaIndex(), Integer.numberOfTrailingZeros(FaceMask.EAST));
     }
 
     @Test

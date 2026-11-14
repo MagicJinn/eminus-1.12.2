@@ -10,6 +10,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.PlaneAxes;
@@ -47,7 +48,7 @@ public final class FaceLightReading {
         CellFrame frame = runtime.frame();
         long[] keys = CellMeshing.keys(frame, level, level, minX, minY, minZ, maxX, maxY, maxZ);
         Box box = new Box(minX, minY, minZ, maxX, maxY, maxZ);
-        ClientBakery baking = ClientBakery.start(Minecraft.getInstance());
+        ClientBakery baking = ModernClientBakery.start(Minecraft.getInstance());
 
         return CellMeshing.mesh(runtime, instance, baking, keys, TIMEOUT_SECONDS)
                 .thenApply(meshes -> rows(frame, keys, meshes, box))

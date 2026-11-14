@@ -12,8 +12,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongList;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
+import com.eminus.platform.math.PackedBlockPos;
 
 public final class BeamSet {
     private final Object lock = new Object();
@@ -38,7 +37,7 @@ public final class BeamSet {
                 version++;
             }
         } catch (IllegalArgumentException damaged) {
-            Eminus.LOGGER.error("Damaged beam record at {} skipped: {}", BlockPos.of(pos), damaged.getMessage());
+            Eminus.LOGGER.error("Damaged beam record at {} skipped: {}", pos, damaged.getMessage());
         }
     }
 
@@ -81,8 +80,8 @@ public final class BeamSet {
         LongList found = new LongArrayList();
         synchronized (lock) {
             for (long pos : beams.keySet()) {
-                if (SectionPos.blockToSectionCoord(BlockPos.getX(pos)) == chunkX
-                        && SectionPos.blockToSectionCoord(BlockPos.getZ(pos)) == chunkZ) {
+                if (PackedBlockPos.sectionX(PackedBlockPos.getX(pos)) == chunkX
+                        && PackedBlockPos.sectionZ(PackedBlockPos.getZ(pos)) == chunkZ) {
                     found.add(pos);
                 }
             }
@@ -139,7 +138,7 @@ public final class BeamSet {
                     store.putBeam(pos, BeamRecord.encode(current));
                 }
             } catch (RuntimeException failure) {
-                Eminus.LOGGER.error("Could not write the beam at {} to the store.", BlockPos.of(pos), failure);
+                Eminus.LOGGER.error("Could not write the beam at {} to the store.", pos, failure);
             }
             return true;
         }

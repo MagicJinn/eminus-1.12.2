@@ -1,6 +1,6 @@
 package com.eminus.cell;
 
-import net.minecraft.core.Direction;
+import com.eminus.geom.Face;
 
 public final class CellKey {
     public static final int HORIZONTAL_BITS = 24;
@@ -43,14 +43,12 @@ public final class CellKey {
         return (int) ((key >>> Z_SHIFT) & HORIZONTAL_MASK) + MIN_HORIZONTAL;
     }
 
-    public static long neighbor(long key, Direction face) {
+    public static long neighbor(long key, Face face) {
         int level = level(key);
-        int step = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : -1;
-
-        return switch (face.getAxis()) {
-            case X -> pack(level, x(key) + step, y(key), z(key));
-            case Y -> pack(level, x(key), y(key) + step, z(key));
-            case Z -> pack(level, x(key), y(key), z(key) + step);
+        return switch (face.axis()) {
+            case X -> pack(level, x(key) + face.stepX(), y(key), z(key));
+            case Y -> pack(level, x(key), y(key) + face.stepY(), z(key));
+            case Z -> pack(level, x(key), y(key), z(key) + face.stepZ());
         };
     }
 

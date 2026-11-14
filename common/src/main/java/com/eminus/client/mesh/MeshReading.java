@@ -13,6 +13,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.StateLayers;
 import com.eminus.cell.StateTable;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshModels;
@@ -59,11 +60,11 @@ public final class MeshReading {
 
         long key = runtime.frame().keyAt(level, blockX, blockY, blockZ);
         Path file = client.gameDirectory.toPath().resolve(FILE_NAME);
-        ClientBakery baking = ClientBakery.start(client);
+        ClientBakery baking = ModernClientBakery.start(client);
 
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
                 .thenApply(meshes -> write(CellMeshing.meshOf(meshes, key), MeshWiring.models(runtime, baking),
-                        baking.bakery(), runtime.states(), file))
+                        ((com.eminus.model.ModelBakery) baking.bakery()), (StateTable) runtime.states(), file))
                 .whenComplete((row, failure) -> baking.stop());
     }
 

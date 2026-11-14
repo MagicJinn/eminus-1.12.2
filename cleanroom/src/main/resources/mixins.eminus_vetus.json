@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.eminus.vetus.mixin",
+  "refmap": "mixins.eminus_vetus.refmap.json",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "EntityRendererFarMixin",
+    "NetHandlerPlayClientMixin"
+  ]
+}

@@ -1,0 +1,309 @@
+plugins {
+    id 'java-library'
+    id 'com.gtnewhorizons.retrofuturagradle'
+}
+
+apply from: rootProject.file('cleanroom/rfg-helpers.gradle')
+
+def nullaway_version = rootProject.findProperty('nullaway_version') ?: '0.14.2'
+
+version = propertyString('mod_version')
+group = propertyString('root_package')
+
+base {
+    archivesName = propertyString('mod_id')
+}
+
+def useJava25 = propertyBool('use_java25_bytecode')
+
+apply from: rootProject.file('cleanroom/vetus-upstream.gradle')
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/stub/java', 'src/shim/java', 'src/main/java'
+        }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(useJava25 ? 25 : (propertyBool('use_modern_java_syntax') ? 16 : 8))
+        vendor = JvmVendorSpec.AZUL
+    }
+}
+
+minecraft {
+    mcVersion.set('1.12.2')
+    mcpMappingChannel.set(propertyString('mapping_channel'))
+    mcpMappingVersion.set(propertyString('mapping_version'))
+    useDependencyAccessTransformers.set(propertyBool('use_dependency_at_files'))
+    username.set(propertyString('minecraft_username'))
+    extraTweakClasses.addAll(propertyStringList('extra_tweak_classes'))
+    extraRunJvmArguments.addAll('-ea:' + group)
+    extraRunJvmArguments.addAll(propertyStringList('extra_jvm_args'))
+}
+
+repositories {
+    maven {
+        name = 'CleanroomMC Maven'
+        url = 'https://maven.cleanroommc.com'
+    }
+    maven {
+        name = 'Fabric'
+        url = 'https://maven.fabricmc.net/'
+    }
+}
+
+configurations {
+    vetusEmbeddedLibs
+}
+
+dependencies {
+    if (useJava25) {
+        implementation project(':core')
+        implementation 'org.joml:joml:1.10.8'
+        // Core uses slf4j-api; Forge/Cleanroom do not ship an SLF4J binding for mod code.
+        vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
+        // Cell store stack must be fat-jar'd; 1.12.2 has no jar-in-jar loader for these.
+        def sqliteJdbcVersion = rootProject.findProperty('sqlite_jdbc_version') ?: '3.53.4.0'
+        def aircompressorVersion = rootProject.findProperty('aircompressor_version') ?: '2.0.3'
+        implementation "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
+        implementation "io.airlift:aircompressor:${aircompressorVersion}"
+        vetusEmbeddedLibs "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
+        vetusEmbeddedLibs "io.airlift:aircompressor:${aircompressorVersion}"
+        implementation platform('org.lwjgl:lwjgl-bom:3.3.3')
+        implementation 'org.lwjgl:lwjgl'
+        implementation 'org.lwjgl:lwjgl-opengl'
+        runtimeOnly 'org.lwjgl:lwjgl::natives-linux'
+        compileOnly 'org.jspecify:jspecify:1.0.0'
+        compileOnly "com.uber.nullaway:nullaway-annotations:${nullaway_version}"
+        implementation 'it.unimi.dsi:fastutil:8.5.15'
+        implementation 'org.slf4j:slf4j-api:2.0.16'
+        if (propertyBool('use_mixins')) {
+            compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+            annotationProcessor "net.fabricmc:sponge-mixin:${mixin_version}"
+        }
+    }
+
+    if (propertyBool('use_modern_java_syntax') && !useJava25) {
+        annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        annotationProcessor 'net.java.dev.jna:jna-platform:5.13.0'
+        compileOnly('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
+            transitive = false
+        }
+        patchedMinecraft 'me.eigenraven.java8unsupported:java-8-unsupported-shim:1.0.0'
+    }
+}
+
+def mcmodInfoId = propertyString('mod_id')
+def mcmodInfoName = propertyString('mod_name')
+def mcmodInfoVersion = propertyString('mod_version')
+
+processResources {
+    inputs.property 'mod_id', mcmodInfoId
+    inputs.property 'mod_name', mcmodInfoName
+    inputs.property 'mod_version', mcmodInfoVersion
+
+    filesMatching('mcmod.info') {
+        expand(
+                'mod_id': mcmodInfoId,
+                'mod_name': mcmodInfoName,
+                'mod_version': mcmodInfoVersion,
+        )
+    }
+}
+
+tasks.named('jar', Jar) {
+    if (useJava25) {
+        dependsOn ':core:classes'
+        from sourceSets.main.output
+        // Keep cleanroom GameHandles; drop only the modern/core Pearl variant.
+        from(project(':core').sourceSets.main.output) {
+            exclude 'com/eminus/client/gpu/opengl/GameHandles.class'
+            exclude 'com/eminus/client/gpu/opengl/GameHandles$Handle.class'
+        }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        from {
+            def libs = configurations.vetusEmbeddedLibs.files
+            libs.addAll(project(':core').configurations.runtimeClasspath.files)
+            libs.collect { dep ->
+                dep.isDirectory() ? dep : zipTree(dep)
+            }
+        } {
+            exclude 'META-INF/MANIFEST.MF'
+            exclude 'META-INF/*.SF'
+            exclude 'META-INF/*.DSA'
+            exclude 'META-INF/*.RSA'
+            exclude 'META-INF/LICENSE*'
+            exclude 'META-INF/NOTICE*'
+            exclude 'META-INF/versions/**'
+            exclude 'module-info.class'
+        }
+    }
+}
+
+tasks.named('assemble').configure {
+    if (useJava25) {
+        dependsOn ':core:classes'
+    }
+}
+
+def vetusJarRequiredCoreClasses = [
+        'com/eminus/Eminus.class',
+        'com/eminus/geom/Face.class',
+        'com/eminus/ingest/IngestTrigger.class',
+        'com/eminus/ingest/port/ChunkColumnSink.class',
+        'com/eminus/ingest/port/ColumnRef.class',
+        'com/eminus/ingest/SectionPyramid.class',
+        'com/eminus/ingest/SectionSliceConverter.class',
+        'com/eminus/ingest/PyramidDownsampler.class',
+        'com/eminus/render/port/FarLayerEnvironment.class',
+        'com/eminus/client/gpu/RenderThreadGuard.class',
+        'com/eminus/client/frame/GameFrame.class',
+        'com/eminus/cell/CellStates.class',
+        'com/eminus/cell/DictionaryStateTable.class',
+]
+
+def vetusJarRequiredFarClasses = [
+        'com/eminus/client/render/far/FarRenderer.class',
+        'com/eminus/client/render/far/FarStart.class',
+        'com/eminus/client/gpu/opengl/OpenGlGpu.class',
+        'com/eminus/client/gpu/opengl/GameHandles.class',
+]
+
+def vetusJarRequiredEmbeddedLibs = [
+        'org/sqlite/SQLiteConfig.class',
+        'io/airlift/compress/zstd/ZstdCompressor.class',
+]
+
+def vetusJarAllowedMinecraftShims = [
+        'net/minecraft/core/Direction.class',
+        'net/minecraft/core/Direction$Axis.class',
+        'net/minecraft/core/Direction$AxisDirection.class',
+        'net/minecraft/util/Mth.class',
+        'net/minecraft/world/level/block/state/BlockState.class',
+]
+
+def vetusJarTask = tasks.named('jar', Jar)
+def vetusReobfJarTask = tasks.named('reobfJar')
+
+tasks.register('verifyVetusJarContents') {
+    if (!useJava25) {
+        enabled = false
+        return
+    }
+    dependsOn vetusJarTask, vetusReobfJarTask
+    def jarArchive = vetusJarTask.flatMap { it.archiveFile }
+    def reobfJarFileProvider = layout.buildDirectory.file("libs/${base.archivesName.get()}-${project.version}.jar")
+    def coreClassesDirProvider = project(':core').layout.buildDirectory.dir('classes/java/main')
+    inputs.file(jarArchive)
+    inputs.file(reobfJarFileProvider)
+    inputs.dir(coreClassesDirProvider)
+    doLast {
+        def jarFile = jarArchive.get().asFile
+        def jarEntries = new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+            zip.entries().collect { it.name }.toSet()
+        }
+
+        def missingRequired = vetusJarRequiredCoreClasses.findAll { !jarEntries.contains(it) }
+        if (!missingRequired.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required core classes: ${missingRequired}")
+        }
+
+        def missingFar = vetusJarRequiredFarClasses.findAll { !jarEntries.contains(it) }
+        if (!missingFar.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required far stack classes: ${missingFar}")
+        }
+
+        def missingLibs = vetusJarRequiredEmbeddedLibs.findAll { !jarEntries.contains(it) }
+        if (!missingLibs.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing embedded store libs: ${missingLibs}")
+        }
+
+        def missingShims = vetusJarAllowedMinecraftShims.findAll { !jarEntries.contains(it) }
+        if (!missingShims.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required minecraft shims: ${missingShims}")
+        }
+
+        def coreClassesDir = coreClassesDirProvider.get().asFile
+        if (!coreClassesDir.isDirectory()) {
+            throw new GradleException("Core classes directory missing: ${coreClassesDir}")
+        }
+
+        def missingCore = []
+        coreClassesDir.eachFileRecurse { file ->
+            if (!file.name.endsWith('.class')) {
+                return
+            }
+            def entry = coreClassesDir.toPath().relativize(file.toPath()).toString().replace(File.separator, '/')
+            if (!jarEntries.contains(entry)) {
+                missingCore << entry
+            }
+        }
+        if (!missingCore.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing ${missingCore.size()} core classes, first: ${missingCore.take(5)}")
+        }
+
+        def allowedMinecraft = vetusJarAllowedMinecraftShims.toSet()
+        def forbiddenPrefixes = ['net/minecraft/', 'net/minecraftforge/']
+        def leaked = jarEntries.findAll { name ->
+            if (allowedMinecraft.contains(name)) {
+                return false
+            }
+            forbiddenPrefixes.any { prefix -> name.startsWith(prefix) && name.endsWith('.class') }
+        }
+        if (!leaked.isEmpty()) {
+            throw new GradleException("Vetus jar must not bundle Minecraft/loader classes: ${leaked.take(5)}")
+        }
+
+        // Prism/Cleanroom need the SRG reobf jar, not the MCP *-dev.jar classifier.
+        def reobfFile = reobfJarFileProvider.get().asFile
+        if (!reobfFile.isFile()) {
+            throw new GradleException("Missing reobfuscated jar: ${reobfFile}")
+        }
+        def eventsEntry = 'com/eminus/vetus/client/VetusClientEvents.class'
+        def eventsBytes = new java.util.zip.ZipFile(reobfFile).withCloseable { zip ->
+            def entry = zip.getEntry(eventsEntry)
+            if (entry == null) {
+                throw new GradleException("Reobf jar ${reobfFile.name} missing ${eventsEntry}")
+            }
+            zip.getInputStream(entry).bytes
+        }
+        def eventsText = new String(eventsBytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+        if (!eventsText.contains('field_72995_K')) {
+            throw new GradleException(
+                    "Reobf jar ${reobfFile.name} still has MCP World.isRemote; install ${reobfFile.name}, not the *-dev classifier jar")
+        }
+        if (eventsText.contains('isRemote')) {
+            throw new GradleException(
+                    "Reobf jar ${reobfFile.name} still references MCP name isRemote")
+        }
+    }
+}
+
+tasks.named('build').configure {
+    if (useJava25) {
+        dependsOn tasks.named('verifyVetusJarContents')
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    if (propertyBool('use_modern_java_syntax') && !useJava25) {
+        if (name in ['compileMcLauncherJava', 'compilePatchedMcJava']) {
+            return
+        }
+        sourceCompatibility = '17'
+        options.release.set(8)
+        javaCompiler.set(javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.of(16))
+            vendor.set(JvmVendorSpec.AZUL)
+        })
+    }
+}

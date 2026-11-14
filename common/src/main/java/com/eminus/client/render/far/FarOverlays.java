@@ -13,11 +13,9 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.session.DimensionRuntime;
 
-import net.minecraft.client.multiplayer.ClientLevel;
-
 import org.joml.Matrix4fc;
 
-final class FarOverlays implements AutoCloseable {
+public final class FarOverlays implements AutoCloseable {
     private final BoxPass boxes;
     private final BeamPass beams;
 
@@ -36,7 +34,7 @@ final class FarOverlays implements AutoCloseable {
         return pipelines;
     }
 
-    BeamPass beams() {
+    public BeamPass beams() {
         return beams;
     }
 
@@ -44,9 +42,8 @@ final class FarOverlays implements AutoCloseable {
         return boxes.drawsAny() || beams.drawsAny();
     }
 
-    void update(DimensionRuntime runtime, ClientLevel level, GameFrame game) {
+    void update(DimensionRuntime runtime, GameFrame game) {
         boxes.update(BoxRegistry.get(), runtime.identity().dimension());
-        beams.update(runtime.beams(), level, game);
     }
 
     void drawFar(FarTarget target, Matrix4fc farViewProjection, GameFrame game) {

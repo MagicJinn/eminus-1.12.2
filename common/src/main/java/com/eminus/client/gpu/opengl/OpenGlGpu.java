@@ -36,7 +36,7 @@ import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.eminus.client.gpu.RenderThreadGuard;
 
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.ARBClipControl;
@@ -96,7 +96,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
     }
 
     public static OpenGlGpu create() {
-        RenderSystem.assertOnRenderThread();
+        RenderThreadGuard.assertOnRenderThread();
         GLCapabilities gl = GL.getCapabilities();
         boolean zeroToOne = gl.GL_ARB_clip_control
                 && GL11C.glGetInteger(ARBClipControl.GL_CLIP_DEPTH_MODE) == ARBClipControl.GL_ZERO_TO_ONE;
@@ -127,7 +127,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
 
     @Override
     public void assertRenderThread() {
-        RenderSystem.assertOnRenderThread();
+        RenderThreadGuard.assertOnRenderThread();
     }
 
     @Override
@@ -395,7 +395,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
 
     @Override
     public void close() {
-        RenderSystem.assertOnRenderThread();
+        RenderThreadGuard.assertOnRenderThread();
         pipelines.forEach(pipeline -> pipeline.delete(objects));
         pipelines.clear();
         for (int sampler : samplers.values()) {

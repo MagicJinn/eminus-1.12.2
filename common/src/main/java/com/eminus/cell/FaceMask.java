@@ -1,6 +1,6 @@
 package com.eminus.cell;
 
-import net.minecraft.core.Direction;
+import com.eminus.geom.Face;
 
 public final class FaceMask {
     public static final int NONE = 0;
@@ -14,8 +14,8 @@ public final class FaceMask {
 
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
 
-    public static int bit(Direction face) {
-        return 1 << face.get3DDataValue();
+    public static int bit(Face face) {
+        return 1 << face.vanillaIndex();
     }
 
     public static int of(int voxelX, int voxelY, int voxelZ) {

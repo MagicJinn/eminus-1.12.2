@@ -1,7 +1,5 @@
 package com.eminus.client.render.far;
 
-import net.minecraft.client.renderer.Projection;
-
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 
@@ -10,31 +8,30 @@ public final class FarProjection {
 
     private static final double HALF = 0.5;
     private static final double WIDEST_HALF_ANGLE = Math.toRadians(85.0);
-    private static final float UNIT_HEIGHT = 1.0F;
     private static final double UNIT_DEPTH = 1.0;
     private static final double MAX_SINE = 1.0;
 
-    private final Projection projection = new Projection();
-    private final Projection walkProjection = new Projection();
-
     public Matrix4f viewProjection(float near, float fov, Matrix4fc fold, Matrix4fc rotation, float width,
             float height, Matrix4f target) {
-        return projection(near, fov, fold, width, height, target).mul(rotation);
+        return perspective(near, fov, width, height, target).mul(fold).mul(rotation, target);
     }
 
     public Matrix4f projection(float near, float fov, Matrix4fc fold, float width, float height, Matrix4f target) {
-        projection.setupPerspective(near, FAR, fov, width, height);
-        projection.getMatrix(target);
-        return target.mul(fold);
+        return perspective(near, fov, width, height, target).mul(fold, target);
     }
 
     public Matrix4f walkViewProjection(float near, float fov, float turnMargin, Matrix4fc fold, Matrix4fc rotation,
             float width, float height, Matrix4f target) {
         float aspect = width / height;
-        walkProjection.setupPerspective(near, FAR, widenedFov(fov, aspect, turnMargin),
-                widenedAspect(fov, aspect, turnMargin), UNIT_HEIGHT);
-        walkProjection.getMatrix(target);
-        return target.mul(fold).mul(rotation);
+        float walkFov = widenedFov(fov, aspect, turnMargin);
+        float walkAspect = widenedAspect(fov, aspect, turnMargin);
+        target.setPerspective((float) Math.toRadians(walkFov), walkAspect, near, FAR);
+        return target.mul(fold).mul(rotation, target);
+    }
+
+    private static Matrix4f perspective(float near, float fovDegrees, float width, float height, Matrix4f target) {
+        float aspect = width / height;
+        return target.setPerspective((float) Math.toRadians(fovDegrees), aspect, near, FAR);
     }
 
     static float widenedFov(float fovDegrees, float aspect, float turnMargin) {

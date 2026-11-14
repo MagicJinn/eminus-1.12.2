@@ -10,6 +10,7 @@ import java.util.OptionalDouble;
 import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.beam.BeaconBeamMetrics;
 import com.eminus.beam.Beam;
 import com.eminus.beam.BeamSet;
 import com.eminus.beam.BeamSnapshot;
@@ -34,10 +35,7 @@ import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.settings.FarDistance;
 
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.blockentity.BeaconRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
+import com.eminus.platform.math.PackedBlockPos;
 
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
@@ -109,8 +107,8 @@ public final class BeamPass implements AutoCloseable {
         return builder.withBinding(Binding.texel(RECORDS, TEXEL_FORMAT))
                 .withDefine("BEAM_TEXELS", BeamTexels.TEXELS)
                 .withDefine("BEAM_PRISM_VERTICES", BeamTexels.VERTICES_PER_PRISM)
-                .withDefine("BEAM_SOLID_RADIUS", BeaconRenderer.SOLID_BEAM_RADIUS)
-                .withDefine("BEAM_GLOW_RADIUS", BeaconRenderer.BEAM_GLOW_RADIUS)
+                .withDefine("BEAM_SOLID_RADIUS", BeaconBeamMetrics.SOLID_BEAM_RADIUS)
+                .withDefine("BEAM_GLOW_RADIUS", BeaconBeamMetrics.BEAM_GLOW_RADIUS)
                 .withDefine("BEAM_SCALE_DISTANCE", SCALE_DISTANCE)
                 .withDefine("BEAM_GLOW_ALPHA", GLOW_ALPHA);
     }
@@ -123,7 +121,7 @@ public final class BeamPass implements AutoCloseable {
         return sections > 0;
     }
 
-    public void update(BeamSet beams, ClientLevel level, GameFrame game) {
+    public void update(BeamSet beams, GameFrame game, BeamChunkHeld chunkHeld) {
         gpu.assertRenderThread();
         BeamSnapshot snapshot = held;
         if (snapshot == null || snapshot.version() != beams.version()) {
@@ -131,7 +129,7 @@ public final class BeamPass implements AutoCloseable {
             held = snapshot;
         }
 
-        List<Beam> unseen = unseenByTheGame(snapshot.beams(), level, game);
+        List<Beam> unseen = unseenByTheGame(snapshot.beams(), game, chunkHeld);
         if (unseen.equals(drawn)) {
             return;
         }
@@ -144,22 +142,21 @@ public final class BeamPass implements AutoCloseable {
 
         reserve(BeamTexels.bytes(sections));
         scratch.clear();
-        BeamTexels.write(unseen, BeaconRenderer.MAX_RENDER_Y, scratch);
+        BeamTexels.write(unseen, BeaconBeamMetrics.MAX_RENDER_Y, scratch);
         scratch.flip();
         gpu.write(Objects.requireNonNull(records, "reserved above"), START_OF_BUFFER, scratch);
     }
 
     // The game draws a beam whose chunk the client holds inside its render distance (BeaconRenderer.shouldRender).
-    private static List<Beam> unseenByTheGame(List<Beam> beams, ClientLevel level, GameFrame game) {
+    private static List<Beam> unseenByTheGame(List<Beam> beams, GameFrame game, BeamChunkHeld chunkHeld) {
         double reach = (double) game.renderDistance() * FarDistance.BLOCKS_PER_CHUNK;
         List<Beam> unseen = new ArrayList<>(beams.size());
         for (Beam beam : beams) {
-            int x = BlockPos.getX(beam.pos());
-            int z = BlockPos.getZ(beam.pos());
+            int x = PackedBlockPos.getX(beam.pos());
+            int z = PackedBlockPos.getZ(beam.pos());
             double dx = x + BLOCK_CENTER - game.eyeX();
             double dz = z + BLOCK_CENTER - game.eyeZ();
-            boolean held = level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(x),
-                    SectionPos.blockToSectionCoord(z));
+            boolean held = chunkHeld.chunkHeld(PackedBlockPos.sectionX(x), PackedBlockPos.sectionZ(z));
             if (!held || dx * dx + dz * dz >= reach * reach) {
                 unseen.add(beam);
             }

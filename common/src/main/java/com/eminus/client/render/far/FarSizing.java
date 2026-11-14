@@ -9,15 +9,13 @@ import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.tree.NodeTable;
 import com.eminus.settings.Settings;
 
-import net.minecraft.client.Minecraft;
-
 import org.jspecify.annotations.Nullable;
 
 record FarSizing(long arenaBytes, @Nullable Sparse sparse, int nodeCapacity) {
-    static FarSizing of(Minecraft client, Gpu gpu, OptionalLong freeBytes, long replacedArenaBytes, int lowestLevel,
+    static FarSizing of(FarClientBridge bridge, Gpu gpu, OptionalLong freeBytes, long replacedArenaBytes, int lowestLevel,
             Settings settings, int levelHeight) {
         long ceiling = ArenaBudget.ceiling(gpu.capabilities(), freeBytes, replacedArenaBytes);
-        float focal = FarProjection.focalPixels(client.options.fov().get(), gpu.mainColor().height());
+        float focal = FarProjection.focalPixels(bridge.settingsFovDegrees(), gpu.mainColor().height());
         int subdivisionPixels = settings.detailDistance().pixels();
         @Nullable Sparse sparse = ArenaBudget.sparse(gpu);
         long bytes = ArenaBudget.bytes(ArenaSizing.wanted(settings.farRenderCells(), subdivisionPixels, focal,

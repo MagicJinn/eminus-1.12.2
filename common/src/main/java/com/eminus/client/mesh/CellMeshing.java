@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.mesh.ModernMeshWiring;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.session.DimensionRuntime;
@@ -27,7 +28,7 @@ public final class CellMeshing {
             ClientBakery baking, long[] keys, int timeoutSeconds) {
         Map<Long, CellMesh> meshes = new ConcurrentHashMap<>();
         CompletableFuture<Map<Long, CellMesh>> done = new CompletableFuture<>();
-        MeshService service = MeshWiring.service(Minecraft.getInstance(), runtime, instance, baking,
+        MeshService service = ModernMeshWiring.service(Minecraft.getInstance(), runtime, instance, baking,
                 (mesh, request) -> {
                     meshes.put(mesh.key(), mesh);
                     if (meshes.size() == keys.length) {

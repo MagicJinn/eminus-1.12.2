@@ -1,0 +1,18 @@
+def gradleProperties = new Properties()
+file("${rootProject.projectDir}/cleanroom/gradle.properties").withInputStream { gradleProperties.load(it) }
+
+ext.propertyString = { String key ->
+    def value = project.findProperty(key) ?: gradleProperties.getProperty(key)
+    if (value == null) {
+        throw new GradleException("Missing gradle property: ${key}")
+    }
+    return value.toString()
+}
+
+ext.propertyBool = { String key ->
+    propertyString(key).toBoolean()
+}
+
+ext.propertyStringList = { String key, String delimiter = ' ' ->
+    propertyString(key).tokenize(delimiter)
+}

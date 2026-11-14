@@ -5,10 +5,6 @@ import com.eminus.cell.DetailLevel;
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 
-import net.minecraft.core.Holder;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.block.state.BlockState;
-
 public final class SectionPyramid {
     public static final int SECTION_SIDE = 16;
     public static final int ABSENT = -1;
@@ -16,8 +12,8 @@ public final class SectionPyramid {
     private static final int INITIAL_TRANSLATION_CAPACITY = 64;
 
     private final long[][] levels = new long[DetailLevel.COUNT][];
-    private final Reference2IntMap<BlockState> stateIds = newTranslation();
-    private final Reference2IntMap<Holder<Biome>> biomeIds = newTranslation();
+    private final Reference2IntMap<Object> stateIds = newTranslation();
+    private final Reference2IntMap<Object> biomeIds = newTranslation();
 
     public SectionPyramid() {
         for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
@@ -38,11 +34,11 @@ public final class SectionPyramid {
         return levels[level];
     }
 
-    public Reference2IntMap<BlockState> stateIds() {
+  public Reference2IntMap<Object> stateIds() {
         return stateIds;
     }
 
-    public Reference2IntMap<Holder<Biome>> biomeIds() {
+    public Reference2IntMap<Object> biomeIds() {
         return biomeIds;
     }
 

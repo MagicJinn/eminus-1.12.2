@@ -5,7 +5,6 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
-
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 
 import net.minecraft.core.Holder;
@@ -31,7 +30,7 @@ public final class SectionConverter {
         into.reset();
 
         long[] level = into.level(DetailLevel.MIN);
-        Reference2IntMap<BlockState> known = into.stateIds();
+        Reference2IntMap<Object> known = into.stateIds();
 
         for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
             for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
@@ -97,7 +96,7 @@ public final class SectionConverter {
             return VoxelEntry.KEPT_BIOME;
         }
 
-        Reference2IntMap<Holder<Biome>> known = into.biomeIds();
+        Reference2IntMap<Object> known = into.biomeIds();
         int id = known.getInt(holder);
         if (id == SectionPyramid.ABSENT) {
             id = idOf(holder, biomes);
@@ -122,6 +121,11 @@ public final class SectionConverter {
         }
 
         return id;
+    }
+
+    public static void convertSlice(com.eminus.ingest.port.SectionSlice slice,
+            com.eminus.ingest.port.VoxelStateLookup states, Dictionary<String> biomes, SectionPyramid into) {
+        SectionSliceConverter.convert(slice, states, biomes, into);
     }
 
     private SectionConverter() {

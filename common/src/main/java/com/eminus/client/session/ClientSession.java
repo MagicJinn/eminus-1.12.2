@@ -27,6 +27,7 @@ import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.PackBlocks;
 import com.eminus.session.DimensionRuntime;
+import com.eminus.session.SessionCells;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
 import com.eminus.session.WorldIdentity;
@@ -136,7 +137,7 @@ public final class ClientSession {
             restartRenderer();
         } else if (renderer != null) {
             if (resizes) {
-                renderer.resize(Minecraft.getInstance(), updated);
+                renderer.resize(new com.eminus.client.render.far.ModernFarClientBridge(Minecraft.getInstance()), updated);
             }
             renderer.retexture(updated.lodQuality());
             rendered = updated;
@@ -152,13 +153,13 @@ public final class ClientSession {
     public static void drawFarLayer() {
         FarRenderer drawn = ownTargetRenderer();
         if (drawn != null) {
-            drawn.frame(Minecraft.getInstance());
+            drawn.frame();
         }
     }
 
     public static void drawFarLayerOverShaderPack() {
         if (renderer != null && overShaderPack && !inShaderPack) {
-            renderer.frame(Minecraft.getInstance());
+            renderer.frame();
         }
     }
 
@@ -354,7 +355,11 @@ public final class ClientSession {
             return null;
         }
 
-        return SettingsService.get().settings().ingestion() ? runtime.ingest() : null;
+        if (!SettingsService.get().settings().ingestion()) {
+            return null;
+        }
+        SessionCells.DimensionIngest active = runtime.ingest();
+        return active instanceof IngestService service ? service : null;
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -439,7 +444,8 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         Settings settings = captureRenderedInputs(minecraft);
-        FarStart start = FarStart.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
+        FarStart start = FarStart.start(new com.eminus.client.render.far.ModernFarClientBridge(minecraft), gpu,
+                Objects.requireNonNull(instance, IN_SESSION),
                 Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
                 settings, replacedArenaBytes, renderedPackBlocks);
         renderer = start.renderer();

@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.DetailLevel;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.PlaneAxes;
@@ -48,7 +49,7 @@ public final class FaceWordReading {
         int voxelX = CellFrame.voxelX(blockX, LEVEL);
         int voxelY = frame.voxelY(blockY, LEVEL);
         int voxelZ = CellFrame.voxelZ(blockZ, LEVEL);
-        ClientBakery baking = ClientBakery.start(Minecraft.getInstance());
+        ClientBakery baking = ModernClientBakery.start(Minecraft.getInstance());
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
                 .thenApply(meshes -> covering(CellMeshing.meshOf(meshes, key), frame, face, voxelX, voxelY, voxelZ))
                 .whenComplete((rows, failure) -> baking.stop());

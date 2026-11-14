@@ -1,6 +1,10 @@
 package com.eminus.client.mesh;
 
+import com.eminus.cell.CellStates;
+import com.eminus.cell.StateTable;
+import com.eminus.mesh.PlaceholderMeshModels;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.render.far.FarClientBridge;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.BakeryTints;
@@ -18,14 +22,12 @@ import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
-import net.minecraft.client.Minecraft;
-
 public final class MeshWiring {
-    public static MeshService service(Minecraft client, DimensionRuntime runtime, EminusInstance instance,
+    public static MeshService service(FarClientBridge bridge, DimensionRuntime runtime, EminusInstance instance,
             ClientBakery baking, MeshListener listener) {
         return new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
-                models(runtime, baking), new BakeryTints(baking.colors(), runtime.biomes()),
-                client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()),
+                models(runtime, baking), new BakeryTints(baking.colors(), runtime.biomes()), bridge.biomeBlendRadius(),
+                baking.opacity(runtime.states()),
                 occlusion(SettingsService.get().settings().lodQuality().cornerOcclusion()),
                 blades(baking.grassAndFlowers()), listener, EminusInstance.URGENT_BUILD_WEIGHT);
     }
@@ -35,7 +37,12 @@ public final class MeshWiring {
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {
-        return new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery());
+        CellStates states = runtime.states();
+        if (states instanceof com.eminus.cell.StateTable table
+                && baking.bakery() instanceof com.eminus.model.ModelBakery bakery) {
+            return new BakeryModels(new ModelIndex(table, bakery), bakery);
+        }
+        return new PlaceholderMeshModels(baking.bakery());
     }
 
     public static MeshOcclusion occlusion(CornerOcclusion occlusion) {

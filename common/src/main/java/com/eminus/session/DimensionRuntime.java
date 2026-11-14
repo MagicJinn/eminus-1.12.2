@@ -11,13 +11,11 @@ import com.eminus.beam.BeamSet;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
-import com.eminus.cell.StateTable;
+import com.eminus.cell.CellStates;
 import com.eminus.cell.cache.CellCache;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.ingest.CellMerger;
-import com.eminus.ingest.IngestService;
-import com.eminus.ingest.SectionConverter;
 import com.eminus.ingest.SectionPyramid;
 import com.eminus.store.CellStore;
 import com.eminus.store.EmptyCellStore;
@@ -26,6 +24,7 @@ import com.eminus.store.SqliteCellStore;
 import com.eminus.work.WorkService;
 
 import com.uber.nullaway.annotations.Initializer;
+
 
 public final class DimensionRuntime {
     private static final String DROP_GRACE_PROPERTY = "eminus.store.dropGraceHours";
@@ -43,10 +42,10 @@ public final class DimensionRuntime {
     private SaveService saves;
     private CellCache cells;
     private ColumnCoverage coverage;
-    private StateTable states;
+    private CellStates states;
     private Dictionary<String> biomes;
     private CellMerger merger;
-    private IngestService ingest;
+    private SessionCells.DimensionIngest ingest = SessionCells.NO_INGEST;
     private BeamSet beams;
     private int references;
     private long idleSince;
@@ -87,7 +86,7 @@ public final class DimensionRuntime {
         return coverage;
     }
 
-    public StateTable states() {
+    public CellStates states() {
         return states;
     }
 
@@ -99,7 +98,7 @@ public final class DimensionRuntime {
         return merger;
     }
 
-    public IngestService ingest() {
+    public SessionCells.DimensionIngest ingest() {
         return ingest;
     }
 
@@ -145,19 +144,21 @@ public final class DimensionRuntime {
     }
 
     @Initializer
-    void openCells(WorkService<Void> saveService, WorkService<SectionPyramid> ingestService, LongSupplier clock) {
-        Dictionary<String> stateIds = openDictionary(StateTable.DICTIONARY_NAME);
-        Dictionary<String> biomeIds = openDictionary(SectionConverter.DICTIONARY_NAME);
+    void openCells(SessionCells wiring, WorkService<Void> saveService, WorkService<SectionPyramid> ingestService,
+            LongSupplier clock) {
+        Dictionary<String> stateIds = openDictionary(CellStates.DICTIONARY_NAME);
+        Dictionary<String> biomeIds = openDictionary("biome");
 
         saves = new SaveService(store, saveService);
         cells = new CellCache(store, saves, clock);
-        states = new StateTable(stateIds);
+        states = wiring.states(stateIds);
         biomes = biomeIds;
         coverage = openCoverage();
         stopListening();
         Changes forwarded = new Changes();
         merger = new CellMerger(cells, frame, ingestLevel, forwarded);
-        ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
+        SessionCells.DimensionIngest wired = wiring.ingest(ingestService, states, biomes, merger, coverage, forwarded);
+        ingest = wired == null ? SessionCells.NO_INGEST : wired;
         beams = openBeams(saveService);
     }
 
@@ -224,7 +225,11 @@ public final class DimensionRuntime {
         }
 
         closed = true;
-        ingest.stop();
+        @SuppressWarnings("ReferenceEquality")
+        boolean ownsIngest = ingest != SessionCells.NO_INGEST;
+        if (ownsIngest && ingest instanceof com.eminus.ingest.IngestService service) {
+            service.stop();
+        }
         saves.flush();
         cells.flush();
         beams.flush();

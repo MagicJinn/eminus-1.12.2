@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.eminus.cell.CellKey;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
@@ -49,10 +50,10 @@ public final class CellQuadReading {
         long[] keys = square(runtime.frame().keyAt(level, blockX, blockY, blockZ), ring);
         PackBlocks pack = ClientSession.packBlocks();
         boolean renderedSeeThrough = renderer.seeThroughLeaves();
-        ClientBakery opaqueBaking = ClientBakery.start(client, false);
-        ClientBakery seeThroughBaking = ClientBakery.start(client, true);
-        ClientBakery packBaking = ClientBakery.start(client, renderedSeeThrough, pack);
-        ClientBakery packMergedBaking = ClientBakery.start(client, renderedSeeThrough,
+        ClientBakery opaqueBaking = ModernClientBakery.start(client, false);
+        ClientBakery seeThroughBaking = ModernClientBakery.start(client, true);
+        ClientBakery packBaking = ModernClientBakery.start(client, renderedSeeThrough, pack);
+        ClientBakery packMergedBaking = ModernClientBakery.start(client, renderedSeeThrough,
                 new PackBlocks(pack.ids(), IntSet.of()));
         CompletableFuture<Map<Long, CellMesh>> opaque = CellMeshing.mesh(runtime, instance, opaqueBaking, keys,
                 TIMEOUT_SECONDS);
@@ -65,7 +66,7 @@ public final class CellQuadReading {
 
         return CompletableFuture.allOf(opaque, seeThrough, packed, packMerged)
                 .thenApply(meshed -> rows(keys, opaque.join(), seeThrough.join(), packed.join(), packMerged.join(),
-                        renderedSeeThrough, seeThroughBaking.bakery()))
+                        renderedSeeThrough, (com.eminus.model.ModelBakery) seeThroughBaking.bakery()))
                 .whenComplete((rows, failure) -> {
                     opaqueBaking.stop();
                     seeThroughBaking.stop();

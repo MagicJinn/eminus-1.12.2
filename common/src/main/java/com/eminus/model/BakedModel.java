@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.eminus.cell.FaceMask;
-
-import net.minecraft.core.Direction;
+import com.eminus.geom.Face;
 
 import org.jspecify.annotations.Nullable;
 
@@ -32,7 +31,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     public static final float BLOCK_BOTTOM = 0.0F;
     public static final float BLOCK_TOP = 1.0F;
 
-    public static final int FIRST_SIDE_FACE = Direction.NORTH.get3DDataValue();
+    public static final int FIRST_SIDE_FACE = Face.NORTH.vanillaIndex();
     public static final int SLOPES_PER_FACE = 2;
     public static final int SLOPES_LENGTH = FACE_COUNT * SLOPES_PER_FACE;
 
@@ -42,7 +41,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     public static final int NO_PACK_ID = -1;
 
     public static final int SHADE_BITS = 3;
-    public static final int OWN_SHADES = packShades(Direction.values());
+    public static final int OWN_SHADES = packShades(Face.values());
 
     private static final int[] NO_VARIANTS = new int[0];
 
@@ -107,10 +106,11 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         return (mask[index / Long.SIZE] & 1L << index % Long.SIZE) != 0;
     }
 
-    public static int packShades(Direction[] shades) {
+    public static int packShades(Face[] shades) {
         int word = 0;
         for (int face = 0; face < FACE_COUNT; face++) {
-            word |= shades[face].get3DDataValue() << (face * SHADE_BITS);
+            int index = shades[face] == null ? Face.DOWN.vanillaIndex() : shades[face].vanillaIndex();
+            word |= index << (face * SHADE_BITS);
         }
 
         return word;
