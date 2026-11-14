@@ -15,6 +15,10 @@ repositories {
 def coreIncludes = [
         'com/eminus/Eminus.java',
         'com/eminus/MixinGatePlugin.java',
+        'com/eminus/geom/**',
+        'com/eminus/ingest/IngestTrigger.java',
+        'com/eminus/ingest/port/**',
+        'com/eminus/render/port/**',
         'com/eminus/gpu/**',
         'com/eminus/api/v1/FarBox.java',
         'com/eminus/api/v1/FarBoxGroup.java',
@@ -32,6 +36,8 @@ def coreIncludes = [
         'com/eminus/beam/BeamSnapshot.java',
         'com/eminus/beam/BeamStore.java',
         'com/eminus/mesh/Quad.java',
+        'com/eminus/cell/CellKey.java',
+        'com/eminus/cell/FaceMask.java',
         'com/eminus/cell/Cell.java',
         'com/eminus/cell/DetailLevel.java',
         'com/eminus/cell/Dictionary.java',
@@ -48,6 +54,8 @@ def coreTests = [
         'com/eminus/cell/DictionaryTest.java',
         'com/eminus/cell/VoxelEntryTest.java',
         'com/eminus/cell/IdTableTest.java',
+        'com/eminus/cell/CellKeyTest.java',
+        'com/eminus/cell/FaceMaskTest.java',
 ]
 
 sourceSets {

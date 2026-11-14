@@ -24,9 +24,10 @@ These areas are intended to stay free of `net.minecraft`, loader APIs, and optio
 |----------------|-------------|--------|
 | `com.eminus.gpu` | 27 | `Gpu`, buffers, textures, pipelines, passes, `Std140`. Pure Java plus JOML. |
 | `com.eminus.store` | 9 | SQLite cell store, zstd records, `SaveService`. Depends on `CellKey`, `ColumnCoverage`, `cell.cache` at runtime. |
-| `com.eminus.render` | 47 | Tree, arena, far draw logic. **43** files have no Minecraft import, but **4** use `Direction` via `QuadGroups` / culling helpers. |
+| `com.eminus.render` | 47 | Tree, arena, far draw logic. **`GroupFacing`** uses **`Face`**. **`QuadGroups`** still uses modern **`Direction`** for mesh grouping. |
 | `com.eminus.mesh` | 43 | Packed `Quad` format, greedy merge, mesh queues. **29** files have no Minecraft import. **14** tie to `Direction`, `BlockState`, or baking. |
-| `com.eminus.cell` | 19 | Voxel cell encoding. **16** without Minecraft import in isolation, but **`CellKey`**, **`FaceMask`**, and **`StateTable`** import Minecraft (or Brigadier for state parsing). |
+| `com.eminus.geom` | 1 | **`Face`**: axis faces with vanilla 3D index order. Used by **`CellKey`**, **`FaceMask`**, tree culling. |
+| `com.eminus.cell` | 19 | Voxel cell encoding. **`CellKey`** and **`FaceMask`** use **`Face`**. **`StateTable`** still uses Brigadier and registry blocks. |
 | `com.eminus.settings` | 12 | JSON config on disk (Gson). |
 | `com.eminus.session` | 5 | Dimension runtime wiring. No direct Minecraft imports, but types reference **`IngestService`**, **`StateTable`**, **`BeamSet`** (Minecraft-linked). |
 | `com.eminus.handoff` | 5 | Near/far section handoff. No imports, used from client mixins. |
@@ -78,12 +79,35 @@ Greedy meshing and packed quads live in `com.eminus.mesh` (`Quad`, `GreedyMerger
 
 Uses **`ClientLevel`**, **`LevelChunkSection`**, **`LevelLightEngine`**, **`DataLayer`**, **`BiomeManager`**, **`Holder<Biome>`**, section **`SectionPos`**.
 
-1.12.2 needs:
+**Loader-neutral contract (in `core`):**
 
-- Chunk column access (`Chunk` 16-high **slices** are not identical to 1.18+ sections, map carefully).
-- Combined light from `World.getLightSubtracted` or extended storage if using Cleanroom lighting patches.
-- Biome IDs at column corners for tint ingest (`Biome` array on chunk).
-- A port of `SectionConverter` and `SectionPyramid` onto MCP chunk layout.
+- `com.eminus.ingest.port.ColumnRef` (chunk X/Z plus dimension id)
+- `com.eminus.ingest.port.ChunkColumnSink` with `onColumnAvailable` / `onColumnUnavailable`
+- Reuses `com.eminus.ingest.IngestTrigger` for why a column was submitted
+
+**1.12.2 strategy (column-first):** ingest entire client columns so data survives render distance changes. The vetus adapter (`VetusChunkColumnSink`) logs today. Next step maps each `Chunk` into voxel columns (16x256x16 blocks per column on 1.12.2) without mimicking 1.18 section packets.
+
+**Client-only ingest policy (required):**
+
+| Scenario | What may run |
+|----------|----------------|
+| Mod on client, connected to **remote** server (no integrated server) | **Only** client chunk receive and load paths: chunks entering `WorldClient` after network packets or client chunk provider. **No** mixins into chunk generation, population, or server-only `ChunkEvent` handlers on the logical server. |
+| Mod on client, **integrated server** (singleplayer or LAN host) | Same client receive path is enough for far LOD on the machine that plays. Optional server-side generation hooks are allowed **only** in a future server-capable artifact and **only** on the dedicated server event bus, not as a substitute on remote play. |
+| Mod on **dedicated server** | Only if a separate server distribution is installed deliberately. Out of scope for the current `clientSideOnly` jar (`eminus_vetus` @Mod). |
+
+Registration rules for vetus:
+
+- `@Mod(clientSideOnly = true)` on `EminusVetus` so the default jar does not load on a remote dedicated server.
+- `@Mod.EventBusSubscriber(..., Side.CLIENT)` only for ingest today (`VetusClientEvents`). Handlers return early when `!world.isRemote`.
+- `VetusIngestPolicy.forbidServerChunkgenHooks` is true on remote multiplayer. Generation hook types must not register in that mode.
+- Production packet-level hook (optional refinement): tail `NetHandlerPlayClient` chunk data handling if `ChunkEvent.Load` is insufficient, still client-only.
+
+Core documents the contract in `com.eminus.ingest.port.IngestSidePolicy`.
+
+**1.12.2 still needs:**
+
+- Block, light, and biome sampling per column (not necessarily 16x16x16 **section** parity with modern).
+- A 1.12 `SectionConverter` equivalent writing into `SectionPyramid` or a simplified column pyramid.
 
 #### Model (`com.eminus.model`, 41 files)
 
@@ -111,28 +135,25 @@ Keep compat gates in `common` for upstream merges. Vetus should ship separate mi
 
 Gradle project **`core`** reuses selected paths under `common/src/main/java` without NeoForm.
 
-**Compiles today (JDK 25, no Minecraft):** roughly **80+** types including full `com.eminus.gpu`, settings, work, platform, compat gate utilities, partial cell/mesh/api/box, and non-MC beam record types. Verify with `./gradlew :core:compileJava` (requires **Gradle JVM 25**).
+**Compiles today (JDK 25, no Minecraft):** `geom.Face`, `CellKey`, `FaceMask`, ingest port types, `FarLayerEnvironment`, plus the earlier GPU/settings/box slice. Verify with `./gradlew :core:compileJava :core:test`.
 
-**Not yet in `core` without further refactors:**
+**Loader face adapters (not in `core`):**
 
-| Blocker | Why |
-|---------|-----|
-| `store` | Needs `CellKey`, `ColumnCoverage`, `CellHandle` (fine without MC except `CellKey` uses `Direction`). |
-| `GreedyMerger` + friends | Needs `FacePlane`, `OcclusionWord`, and mesh graph types, some MC-linked. |
-| `render` tree | Widespread `CellKey` and `Direction`. |
-| `session` | Pulls ingest and Minecraft session types. |
-| `StateTable` | Parses `BlockState` via Brigadier and registry blocks. |
-| `OpenGlGpu` | Uses `RenderSystem`, Render Pearl, and `GameHandles` (Minecraft textures). |
+| Module | Type | Role |
+|--------|------|------|
+| `fabric` / `neoforge` | `com.eminus.platform.minecraft.ModernFaces` | `Direction` ↔ `Face` |
+| `cleanroom` | `com.eminus.vetus.geom.CleanroomFaces` | `EnumFacing` ↔ `Face` |
 
-**Recommended next extraction step:** add **`com.eminus.geom.Face`** (six axis faces, vanilla 3D data value order) and migrate **`CellKey`**, **`FaceMask`**, and mesh `Direction` uses behind that type or an adapter from MCP `EnumFacing`. That unlocks store plus mesh core in `core` with a bounded diff.
+**Not yet in `core` without further refactors:** `store` (needs `ColumnCoverage`, cache), `render` tree (many types, still MC at mesh boundaries), `StateTable`, `OpenGlGpu`, full `GreedyMerger` graph.
 
-**Upstream tweak in this branch:** `Eminus.LOGGER` now uses SLF4J `LoggerFactory` instead of `LogUtils`, so the mod id logger compiles outside NeoForm (behavior unchanged on modern builds).
+**Upstream tweaks on this fork:** `Eminus.LOGGER` uses SLF4J. **`CellKey`**, **`FaceMask`**, **`TreeBorders`**, **`TreeChanges`**, **`GroupFacing`**, and targeted **`FacePasses`** call sites use **`Face`** instead of pulling `Direction` into cell keys.
 
 ## Gradle: Cleanroom module
 
 - **Plugin:** `com.gtnewhorizons.retrofuturagradle` **2.0.2** (settings). Template upstream often cites **2.0.3** on [ForgeDevEnv](https://github.com/CleanroomMC/ForgeDevEnv).
 - **Mappings:** MCP stable **39** (default template).
 - **Minecraft:** **1.12.2**, Forge **14.23.5.2847** (from dev env).
+- **Runtime target:** [Cleanroom **0.7.14-alpha**](https://github.com/CleanroomMC/Cleanroom/releases/tag/0.7.14-alpha) (Java **25**, LWJGL **3**). Newer Cleanroom alphas should work but this is the pinned reference for vetus.
 - **JDK:** **Java 25** for the mod toolchain and for `core`. Root Fabric/NeoForge builds already require **Gradle on JDK 25** (Loom 1.19.x).
 - **Inclusion:** subproject `cleanroom` is added when Gradle runs on **JDK 25+**, or pass **`-Penable_eminus_vetus=true`**. On older JDKs only `core` may be omitted from CI if desired.
 - **Error Prone:** disabled for `:cleanroom` so patched Minecraft sources compile.
@@ -147,6 +168,30 @@ export JAVA_HOME=/path/to/jdk-25
 ```
 
 `runClient` for vetus is not wired in this PR (stub only). Expect to add Cleanroom run configs after game hooks exist.
+
+### Vetus client hooks (stub)
+
+| Piece | Location | Behavior |
+|-------|----------|----------|
+| Chunk ingest | `VetusClientEvents.onChunkLoad` (client bus, `world.isRemote`) | `ChunkColumnSink` with `IngestTrigger.PACKET`. No server chunkgen hooks in client-only jar |
+| Chunk unload | `onChunkUnload` | `onColumnUnavailable` |
+| Far render placeholder | `RenderWorldLastEvent` | No geometry. Logs once if shaders are off |
+| Shader guard | `OptiFineShaderEnvironment` | Reflective OptiFine / Shaders Mod detection. Disables far LOD and logs a warning |
+| Ingest sink | `VetusChunkColumnSink` | Debug logging until column voxel conversion exists |
+
+### Render hook choice (1.12.2)
+
+Modern code injects between solid and translucent terrain in `LevelRendererMixin`. On 1.12.2 the closest stable anchor is **`EntityRenderer.renderWorldPass`**:
+
+- **Pass 0** is opaque terrain (`RenderGlobal.renderBlockLayer` opaque).
+- Injecting **after pass 0** keeps far LOD behind translucent and weather, matching modern ordering closely.
+- **`RenderWorldLastEvent`** is used for the stub because it needs no Mixin bootstrap yet. It runs later than ideal but is easy to maintain while Mixin config is still off in `cleanroom/gradle.properties`.
+
+**Planned production hook:** Mixin (or coremod) tail of `EntityRenderer.renderWorldPass` when `pass == 0`, gated by `VetusClientState.farLayerAllowed()`.
+
+### External shaders policy
+
+Vetus does **not** support OptiFine shader packs (or Shaders Mod). When detected, far rendering stays off and the client logs a warning once. No crash, no mixin into shader internals.
 
 ## OpenGL backend (`OpenGlGpu`) on Cleanroom LWJGL 3
 
@@ -180,23 +225,26 @@ Far rendering runs **between** vanilla passes. On 1.12.2 fixed-function and shad
 
 **Not compatible without rewrites:** dependencies on **Render Pearl** (`RenderPass`, `GpuTextureView`, `CommandEncoder`) and modern-only **chunk section render lists**. Vetus far pass should call simplified draw paths first, then port indirect batching.
 
-## Open decisions for Marijn
+## Decisions (resolved on this pass)
 
-1. **MCP vs Mixin target strategy:** Early vetus mixins on `RenderGlobal` and `ChunkRenderDispatcher` vs wait for a rendering library on Cleanroom.
-2. **Section model:** How closely to emulate 1.18+ section ingest on 1.12.2 slices, or rescope ingest to column chunks only for v1.
-3. **`geom.Face` vs MCP `EnumFacing`:** Single internal face enum for core merge vs adapter at the chunk boundary.
-4. **Core extraction width:** Expand `core` now (Face migration) vs keep `core` as GPU/settings only and share via multi-release jar.
-5. **Shader stack:** Iris parity deferred, OptiFine optional, or vanilla GLSL only for far layer.
-6. **Publish name and metadata:** Curse/Modrinth pages must state unofficial port, link original, keep Required Notice (see `LICENSE`).
-7. **Cleanroom minimum version:** Which Cleanroom build confirms Java 25 plus LWJGL 3 plus mixin bootstrap version for `mixin_booter` when mixins land.
+| Topic | Choice |
+|-------|--------|
+| Face type | Internal `com.eminus.geom.Face`. Adapters on loaders only. |
+| Ingest | Column-first on client chunk receive only when remote. Server chunkgen optional later on integrated or dedicated server dist only. |
+| Render hook | Production: after opaque terrain in `EntityRenderer.renderWorldPass(0)`. Stub: `RenderWorldLastEvent`. |
+| Shaders | Unsupported on vetus. Detect OptiFine / Shaders Mod and disable far LOD with a warning. |
+| Core width | Widen only where upstream diff stays small (`Face`, cell keys, ports). |
+| Cleanroom | **0.7.14-alpha** reference runtime. |
+
+**Still open:** publish metadata, Mixin bootstrap version when production render inject lands, column voxel mapping details.
 
 ## Remaining work (technical scope, not calendar)
 
 | Layer | Scope |
 |-------|--------|
 | Build / CI | JDK 25 on agents, optional `enable_eminus_vetus`, `runClient`, publish `eminus_vetus` jar separate from modern `modJar`. |
-| Geometry / core | `geom.Face`, `CellKey` decoupling, pull `store` plus greedy mesh into `core`, restore store unit tests in `core`. |
-| Chunk ingest | Rewrite `ingest` for `WorldClient` and chunk storage, light, biomes. |
+| Geometry / core | Pull `store`, `ColumnCoverage`, and greedy mesh into `core` after remaining `Direction` at mesh boundaries. |
+| Chunk ingest | Implement 1.12 column to `SectionPyramid` (or alternate column store) behind `ChunkColumnSink`. |
 | Models | Full `vetus.client.model.game` adapter set and atlas baking on 1.12.2. |
 | GPU bridge | `VetusHandles`, depth convention, GL state guard, drop Render Pearl types. |
 | Render hook | Replace `LevelRendererMixin` strategy on terrain pass, far `FarRenderer` equivalent. |

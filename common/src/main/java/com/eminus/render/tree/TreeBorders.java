@@ -4,16 +4,15 @@ import java.util.List;
 
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.geom.Face;
 import com.eminus.mesh.MeshSummary;
 
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
-import net.minecraft.core.Direction;
-
 final class TreeBorders {
-    private static final Direction[] FACES = Direction.values();
+    private static final Face[] FACES = Face.values();
 
     private final LongSet drawnKeys;
     private final LongSet outOfViewDrawnKeys;
@@ -46,10 +45,10 @@ final class TreeBorders {
 
     private int borderFaces(long key) {
         int faces = RenderList.NO_BORDER_FACES;
-        for (Direction face : FACES) {
+        for (Face face : FACES) {
             long neighbor = CellKey.neighbor(key, face);
             if (!drawn(neighbor) && (descended(neighbor) || placedAtOrAbove(neighbor))) {
-                faces |= 1 << face.get3DDataValue();
+                faces |= 1 << face.vanillaIndex();
             }
         }
 

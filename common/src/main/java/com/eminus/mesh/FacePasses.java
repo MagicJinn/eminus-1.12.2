@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
+import com.eminus.geom.Face;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
@@ -385,7 +386,7 @@ public final class FacePasses {
     }
 
     private static boolean bordered(int metadata, Direction face) {
-        return (ModelMetadata.present(metadata) & FaceMask.bit(face)) != 0
+        return (ModelMetadata.present(metadata) & FaceMask.bit(Face.fromVanillaIndex(face.get3DDataValue()))) != 0
                 && !ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT);
     }
 
@@ -475,7 +476,7 @@ public final class FacePasses {
 
     private boolean shielded(long facing, Direction face) {
         return face.getAxis() != Direction.Axis.Y
-                && (ModelMetadata.occludable(metadata) & FaceMask.bit(face)) != 0
+                && (ModelMetadata.occludable(metadata) & FaceMask.bit(Face.fromVanillaIndex(face.get3DDataValue()))) != 0
                 && opacity.coversGround(facing, voxelBlocks)
                 && VoxelEntry.lowGap(facing) <= VoxelEntry.lowGap(owner)
                 && (VoxelEntry.highGap(facing) < VoxelEntry.highGap(owner)
@@ -484,7 +485,8 @@ public final class FacePasses {
     }
 
     private static boolean visible(int metadata, int facingOccluding, Direction face, boolean covered) {
-        int bit = FaceMask.bit(face);
+        Face cubeFace = Face.fromVanillaIndex(face.get3DDataValue());
+        int bit = FaceMask.bit(cubeFace);
         if ((ModelMetadata.present(metadata) & bit) == 0) {
             return false;
         }
@@ -493,6 +495,6 @@ public final class FacePasses {
             return true;
         }
 
-        return (facingOccluding & FaceMask.bit(face.getOpposite())) == 0;
+        return (facingOccluding & FaceMask.bit(cubeFace.opposite())) == 0;
     }
 }

@@ -30,6 +30,8 @@ import com.eminus.work.WorkService;
 import com.eminus.work.WorkerHarness;
 import com.eminus.work.WorkerPool;
 
+import com.eminus.geom.Face;
+
 import net.minecraft.core.Direction;
 
 import org.junit.jupiter.api.AfterEach;
@@ -353,7 +355,7 @@ class MeshServiceTest {
         cell.set(FIRST_VOXEL + 1, CUBE_AT, CUBE_AT, lit(UNBAKED_ABOVE));
         store.write(cell);
 
-        Cell west = Cell.blank(CellKey.neighbor(KEY, Direction.WEST));
+        Cell west = Cell.blank(CellKey.neighbor(KEY, Face.WEST));
         west.set(LAST_VOXEL, CUBE_AT, CUBE_AT, lit(UNBAKED_BELOW));
         store.write(west);
     }

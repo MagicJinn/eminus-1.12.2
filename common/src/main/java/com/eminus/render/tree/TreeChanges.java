@@ -8,14 +8,13 @@ import com.eminus.cell.FaceMask;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshSummary;
+import com.eminus.geom.Face;
 import com.eminus.settings.FarDistance;
-
-import net.minecraft.core.Direction;
 
 import org.jspecify.annotations.Nullable;
 
 final class TreeChanges {
-    private static final Direction[] FACES = Direction.values();
+    private static final Face[] FACES = Face.values();
     private static final int ONE_REFERENCE = 1;
 
     private final NodeTable nodes;
@@ -45,7 +44,7 @@ final class TreeChanges {
 
         requestNeighbors(key, faceMask, camera);
         if ((faceMask & FaceMask.UP) == 0) {
-            TreeNode above = nodes.get(CellKey.neighbor(key, Direction.UP));
+            TreeNode above = nodes.get(CellKey.neighbor(key, Face.UP));
             MeshSummary aboveMesh = above == null ? null : above.mesh();
             if (above != null && aboveMesh != null && aboveMesh.readsBelow()) {
                 requestBuild(above, camera);
@@ -95,7 +94,7 @@ final class TreeChanges {
     }
 
     private void requestNeighbors(long key, int faceMask, @Nullable CameraFrame camera) {
-        for (Direction face : FACES) {
+        for (Face face : FACES) {
             if ((faceMask & FaceMask.bit(face)) == 0) {
                 continue;
             }
