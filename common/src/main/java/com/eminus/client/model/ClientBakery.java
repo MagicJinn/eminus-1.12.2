@@ -10,6 +10,8 @@ import com.eminus.model.ModelBakery;
 import com.eminus.model.PackBlocks;
 import com.eminus.model.SpriteTexels;
 import com.eminus.model.port.VariantDraw;
+import com.eminus.client.render.far.FarClientBridge;
+import com.eminus.client.render.far.ModernFarClientBridge;
 import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
@@ -17,6 +19,13 @@ import net.minecraft.client.Minecraft;
 
 public record ClientBakery(ModelBakery bakery, BiomeColors colors, boolean seeThroughLeaves,
         GrassAndFlowers grassAndFlowers, VariantDraw variantDraw) {
+    public static ClientBakery start(FarClientBridge bridge, PackBlocks packBlocks) {
+        if (bridge instanceof ModernFarClientBridge modern) {
+            return start(modern.minecraft(), packBlocks);
+        }
+        throw new UnsupportedOperationException("Unsupported far client bridge: " + bridge.getClass().getName());
+    }
+
     public static ClientBakery start(Minecraft client) {
         return start(client, PackBlocks.NONE);
     }

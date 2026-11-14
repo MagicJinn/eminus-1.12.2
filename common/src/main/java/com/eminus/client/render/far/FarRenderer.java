@@ -23,7 +23,6 @@ import com.eminus.client.model.ClientBakery;
 import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.frame.GameFog;
 import com.eminus.client.frame.GameFrame;
-import com.eminus.client.frame.GameFrames;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
@@ -52,9 +51,7 @@ import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.util.Mth;
+import com.eminus.platform.math.Floors;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
@@ -96,6 +93,7 @@ public final class FarRenderer implements AutoCloseable {
     private final TreeManager tree;
     private final FarDraw draw;
     private final FarShadow shadow;
+    private @Nullable FarClientBridge bridge;
 
     private IndirectCommands indirect;
     @SuppressWarnings("NullAway.Init")
@@ -143,9 +141,10 @@ public final class FarRenderer implements AutoCloseable {
                         runtime.lowestStoredLevel()), nodeCapacity);
     }
 
-    static void wire(FarRenderer renderer, Minecraft client, DimensionRuntime runtime,
+    static void wire(FarRenderer renderer, FarClientBridge bridge, DimensionRuntime runtime,
             EminusInstance instance, ClientBakery baking) {
-        renderer.meshes = MeshWiring.service(client, runtime, instance, baking, renderer.tree);
+        renderer.bridge = bridge;
+        renderer.meshes = MeshWiring.service(bridge, runtime, instance, baking, renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
     }
@@ -170,9 +169,9 @@ public final class FarRenderer implements AutoCloseable {
         return built.farRenderCells() != updated.farRenderCells() || built.detailDistance() != updated.detailDistance();
     }
 
-    public void resize(Minecraft client, Settings settings) {
+    public void resize(FarClientBridge bridge, Settings settings) {
         gpu.assertRenderThread();
-        FarSizing sizing = FarSizing.of(client, gpu, gpu.freeBytes(), arena.committedBytes(),
+        FarSizing sizing = FarSizing.of(bridge, gpu, gpu.freeBytes(), arena.committedBytes(),
                 runtime.lowestStoredLevel(), settings, levelHeight);
         if (sizing.arenaBytes() != ArenaSizing.REFUSED) {
             arena.resize(sizing.arenaBytes());
@@ -212,8 +211,8 @@ public final class FarRenderer implements AutoCloseable {
         return !CompositeFog.skipped(gameFog.environmentalEnd(), renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
     }
 
-    public void frame(Minecraft client) {
-        if (!stepped(client) || game == null) {
+    public void frame() {
+        if (!stepped() || game == null) {
             return;
         }
 
@@ -237,8 +236,8 @@ public final class FarRenderer implements AutoCloseable {
         overlays.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
     }
 
-    public @Nullable FarDraw packFrame(Minecraft client) {
-        if (!stepped(client) || !terrainDrawn) {
+    public @Nullable FarDraw packFrame() {
+        if (!stepped() || !terrainDrawn) {
             return null;
         }
 
@@ -278,8 +277,8 @@ public final class FarRenderer implements AutoCloseable {
         return draw;
     }
 
-    public @Nullable FarShadow shadowFrame(Minecraft client, Matrix4fc shadowView, Matrix4fc shadowProjection) {
-        if (!stepped(client) || !terrainDrawn || game == null) {
+    public @Nullable FarShadow shadowFrame(Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        if (!stepped() || !terrainDrawn || game == null) {
             return null;
         }
 
@@ -301,7 +300,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     // The shadow pass runs before the main pass: a second step would upload a second batch and post a second walk.
-    private boolean stepped(Minecraft client) {
+    private boolean stepped() {
         gpu.assertRenderThread();
         if (stopped) {
             return false;
@@ -311,25 +310,25 @@ public final class FarRenderer implements AutoCloseable {
             framePending = false;
             farFrame = false;
             terrainDrawn = false;
-            stepFrame(client);
+            stepFrame();
         }
         return true;
     }
 
-    private void stepFrame(Minecraft client) {
+    private void stepFrame() {
+        FarClientBridge active = Objects.requireNonNull(bridge, "Far renderer is not wired to a client bridge");
         uploadBatch();
         Texture main = gpu.mainColor();
         target.resize(main.width(), main.height());
 
-        GameFrame game = GameFrames.read(client);
+        GameFrame game = active.readFrame();
         this.game = game;
         project(game, main);
         Settings settings = SettingsService.get().settings();
-        postWalk(client, game, main, settings);
+        postWalk(active, game, main, settings);
 
-        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
-        overlays.update(runtime, level, game);
-        updateFog(game, level, settings);
+        active.updateOverlays(overlays, runtime, game);
+        updateFog(active, game, settings);
         if (fog.skip()) {
             return;
         }
@@ -340,7 +339,8 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        fillNearSections(client, level, game);
+        active.fillNearSections(nearSections, game, runtime.frame(), ClientSession.CLIENT_EXTRA_CHUNKS,
+                order.meshes());
         writeFrame(game, settings);
         terrainDrawn = true;
     }
@@ -361,7 +361,7 @@ public final class FarRenderer implements AutoCloseable {
         FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
     }
 
-    private void postWalk(Minecraft client, GameFrame game, Texture main, Settings settings) {
+    private void postWalk(FarClientBridge active, GameFrame game, Texture main, Settings settings) {
         frames++;
         Quaternionf rotation = game.viewRotation().getNormalizedRotation(new Quaternionf());
         float margin = turnMargin.frame(rotation);
@@ -370,18 +370,19 @@ public final class FarRenderer implements AutoCloseable {
                 new Matrix4f());
 
         tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), walkViewProjection,
-                FarProjection.focalPixels(client.options.fov().get(), main.height()),
+                FarProjection.focalPixels(active.settingsFovDegrees(), main.height()),
                 FarProjection.focalPixels(game.fov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure(), frames, rotation, margin));
     }
 
-    private void updateFog(GameFrame game, ClientLevel level, Settings settings) {
+    private void updateFog(FarClientBridge active, GameFrame game, Settings settings) {
+        FarClientBridge.LevelExtents extents = active.levelExtents();
         GameFog gameFog = game.fog();
         int renderDistance = game.renderDistance();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
         int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
-        float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), level.getMinY(),
-                level.getMinY() + level.getHeight());
+        float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), extents.minBuildHeight(),
+                extents.minBuildHeight() + extents.height());
         fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
                 gameFog.environmentalEnd(), nearBlocks, reachBlocks, NearReach.horizontalBlocks(keptChunks),
                 settings.farRenderCells());
@@ -391,8 +392,8 @@ public final class FarRenderer implements AutoCloseable {
     private boolean writeCommands(GameFrame game) {
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
                 drawFrustum.set(farViewProjection),
-                NearBox.around(NearSections.section(Mth.floor(game.eyeX())),
-                        NearSections.section(Mth.floor(game.eyeZ())),
+                NearBox.around(NearSections.section(Floors.floor(game.eyeX())),
+                        NearSections.section(Floors.floor(game.eyeZ())),
                         game.renderDistance() + ClientSession.CLIENT_EXTRA_CHUNKS),
                 occlusion.current(frames, game.eyeX(), game.eyeY(), game.eyeZ()), game.eyeX(), game.eyeY(),
                 game.eyeZ());
@@ -511,11 +512,4 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer stopped for {}", runtime.identity().dimension());
     }
 
-    private void fillNearSections(Minecraft client, ClientLevel level, GameFrame game) {
-        int renderDistance = game.renderDistance();
-        nearSections.fill(client.levelRenderer, game.sectionFadeMillis(), order.meshes(), runtime.frame(),
-                NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
-                NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
-                renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
-    }
 }

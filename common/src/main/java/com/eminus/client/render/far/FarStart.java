@@ -17,19 +17,17 @@ import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.settings.Settings;
 
-import net.minecraft.client.Minecraft;
-
 import org.jspecify.annotations.Nullable;
 
 public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal) {
 
-    public static FarStart start(Minecraft client, Gpu gpu, EminusInstance instance,
+    public static FarStart start(FarClientBridge bridge, Gpu gpu, EminusInstance instance,
             DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes,
             PackBlocks packBlocks) {
         gpu.assertRenderThread();
 
         Texture main = gpu.mainColor();
-        FarSizing sizing = FarSizing.of(client, gpu, gpu.capabilities().freeBytes(), replacedArenaBytes,
+        FarSizing sizing = FarSizing.of(bridge, gpu, gpu.capabilities().freeBytes(), replacedArenaBytes,
                 runtime.lowestStoredLevel(), settings, levelHeight);
         BackendSupport support = BackendCheck.run(gpu, sizing.arenaBytes());
         GeometryArena arena = GeometryArena.create(gpu, support, sizing.arenaBytes(), sizing.sparse());
@@ -38,7 +36,7 @@ public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal)
             return refused(support.reason());
         }
 
-        ClientBakery baking = ClientBakery.start(client, packBlocks);
+        ClientBakery baking = ClientBakery.start(bridge, packBlocks);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
@@ -56,7 +54,7 @@ public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal)
                         main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, overlays,
                 IndirectCommands.create(gpu, FarRenderer.START_COMMANDS), levelHeight, sizing.nodeCapacity());
-        FarRenderer.wire(renderer, client, runtime, instance, baking);
+        FarRenderer.wire(renderer, bridge, runtime, instance, baking);
         return started(renderer);
     }
 

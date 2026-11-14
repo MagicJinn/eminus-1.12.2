@@ -1,40 +1,33 @@
 package com.eminus.vetus.ingest;
 
-import com.eminus.Eminus;
 import com.eminus.ingest.IngestTrigger;
 import com.eminus.ingest.port.ChunkColumnSink;
 import com.eminus.ingest.port.ColumnRef;
-import com.eminus.vetus.EminusVetus;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.chunk.Chunk;
 
 /**
- * Placeholder sink until column voxels are converted into {@code SectionPyramid} on 1.12.2.
+ * Forwards loaded client columns into upstream ingest ({@link SectionSliceConverter} then {@link PyramidDownsampler}).
  */
 public final class VetusChunkColumnSink implements ChunkColumnSink {
-    private static final int LOG_EVERY = 64;
-    private int ingested;
+    private final VetusColumnIngest ingest = new VetusColumnIngest();
 
     @Override
     public void onColumnAvailable(ColumnRef column, IngestTrigger trigger) {
-        ingested++;
-        if (ingested == 1 || ingested % LOG_EVERY == 0) {
-            EminusVetus.LOGGER.debug(
-                    "[{}/ingest] column {},{} dim {} trigger {} (count {})",
-                    Eminus.MODID,
-                    column.chunkX(),
-                    column.chunkZ(),
-                    column.dimensionId(),
-                    trigger,
-                    ingested);
+        Minecraft client = Minecraft.getMinecraft();
+        if (client.world == null) {
+            return;
         }
+        Chunk chunk = client.world.getChunk(column.chunkX(), column.chunkZ());
+        if (chunk == null || chunk.isEmpty()) {
+            return;
+        }
+        ingest.onColumnAvailable(client.world, chunk, column, trigger);
     }
 
     @Override
     public void onColumnUnavailable(ColumnRef column) {
-        EminusVetus.LOGGER.debug(
-                "[{}/ingest] column {},{} dim {} unavailable",
-                Eminus.MODID,
-                column.chunkX(),
-                column.chunkZ(),
-                column.dimensionId());
+        ingest.onColumnUnavailable(column);
     }
 }

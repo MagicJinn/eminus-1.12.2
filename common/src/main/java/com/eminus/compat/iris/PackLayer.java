@@ -147,7 +147,7 @@ final class PackLayer {
         }
 
         // Iris hands the callback the device's depth range and the pack's uniforms the -1..1 one.
-        FarShadow drawn = renderer.shadowFrame(Minecraft.getInstance(), shadowView,
+        FarShadow drawn = renderer.shadowFrame(shadowView,
                 MatrixUtils.toMinusOneToOne(new Matrix4f(shadowProjection)));
         if (drawn == null) {
             return;
@@ -377,7 +377,7 @@ final class PackLayer {
             return;
         }
 
-        FarDraw draw = renderer.packFrame(Minecraft.getInstance());
+        FarDraw draw = renderer.packFrame();
         if (draw == null) {
             IrisFarState.clear();
             return;

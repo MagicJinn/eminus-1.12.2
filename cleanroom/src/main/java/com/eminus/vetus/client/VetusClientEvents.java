@@ -7,7 +7,6 @@ import com.eminus.vetus.ingest.VetusIngestPolicy;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -22,7 +21,6 @@ import net.minecraftforge.event.world.ChunkEvent;
  */
 @Mod.EventBusSubscriber(modid = EminusVetus.MODID, value = Side.CLIENT)
 public final class VetusClientEvents {
-    private static boolean renderLogged;
     private static boolean ingestPathLogged;
 
     @SubscribeEvent
@@ -35,10 +33,10 @@ public final class VetusClientEvents {
         if (!ingestPathLogged) {
             ingestPathLogged = true;
             if (VetusIngestPolicy.forbidServerChunkgenHooks(client)) {
-                EminusVetus.LOGGER.debug(
+                EminusVetus.LOGGER.info(
                         "Ingest uses client chunk receive path only (remote server, no chunkgen hooks)");
             } else {
-                EminusVetus.LOGGER.debug(
+                EminusVetus.LOGGER.info(
                         "Ingest uses client chunk receive path (integrated server, no chunkgen hooks in client jar)");
             }
         }
@@ -58,26 +56,6 @@ public final class VetusClientEvents {
         Chunk chunk = event.getChunk();
         int dimension = event.getWorld().provider.getDimension();
         VetusClientState.chunkIngest().onColumnUnavailable(new ColumnRef(chunk.x, chunk.z, dimension));
-    }
-
-    /**
-     * Stub far pass. Production hook should move into {@code EntityRenderer#renderWorldPass} after opaque terrain
-     * (Mixin at the end of pass 0). {@code RenderWorldLastEvent} stays coarse but needs no Mixin bootstrap yet.
-     */
-    @SubscribeEvent
-    public static void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (!VetusClientState.farLayerAllowed()) {
-            return;
-        }
-
-        if (Minecraft.getMinecraft().world == null) {
-            return;
-        }
-
-        if (!renderLogged) {
-            renderLogged = true;
-            EminusVetus.LOGGER.info("Eminus Vetus far LOD render hook placeholder (RenderWorldLastEvent)");
-        }
     }
 
     @SubscribeEvent

@@ -169,15 +169,27 @@ export JAVA_HOME=/path/to/jdk-25
 
 `runClient` for vetus is not wired in this PR (stub only). Expect to add Cleanroom run configs after game hooks exist.
 
-### Vetus client hooks (stub)
+### Vetus client hooks
 
 | Piece | Location | Behavior |
 |-------|----------|----------|
-| Chunk ingest | `VetusClientEvents.onChunkLoad` (client bus, `world.isRemote`) | `ChunkColumnSink` with `IngestTrigger.PACKET`. No server chunkgen hooks in client-only jar |
-| Chunk unload | `onChunkUnload` | `onColumnUnavailable` |
-| Far render placeholder | `RenderWorldLastEvent` | No geometry. Logs once if shaders are off |
+| Chunk ingest | `VetusClientEvents.onChunkLoad` (client bus, `world.isRemote`) | `VetusChunkColumnSink` runs upstream `SectionSliceConverter` and `PyramidDownsampler` per section (INFO logs) |
+| Chunk unload | `onChunkUnload` | `VetusColumnIngest.onColumnUnavailable` |
+| Far render hook | `EntityRendererFarMixin` after opaque `renderBlockLayer` in pass 0 | Calls `VetusClientSession.drawFarLayer()` (session wires to upstream `FarRenderer` next) |
 | Shader guard | `OptiFineShaderEnvironment` | Reflective OptiFine / Shaders Mod detection. Disables far LOD and logs a warning |
-| Ingest sink | `VetusChunkColumnSink` | Debug logging until column voxel conversion exists |
+
+### Vetus adapter shims (this milestone)
+
+| Shim | Role |
+|------|------|
+| `FarClientBridge` + `ModernFarClientBridge` | Upstream `FarRenderer` no longer calls `Minecraft` directly on modern. Cleanroom implements `VetusFarClientBridge` next. |
+| `SectionSlice` + `SectionSliceConverter` | Loader-neutral 16³ samples. `VetusChunkSectionSlice` maps `ExtendedBlockStorage`. |
+| `VoxelStateLookup` + `VetusStateLookup` | Registry string keys to voxel state ids until full `StateTable` on 1.12. |
+| `ChunkRefusals.registerDimension` | Dimension-only refusals without `Level` on vetus. |
+| `Floors` | Shared floor int math for far culling without `Mth` on core-only builds. |
+| `EntityRendererFarMixin` | Production render anchor after opaque terrain (pass 0). |
+
+Ingest previously stayed silent because `VetusChunkColumnSink` logged at DEBUG while vanilla default is INFO.
 
 ### Render hook choice (1.12.2)
 

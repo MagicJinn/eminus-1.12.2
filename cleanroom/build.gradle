@@ -37,6 +37,10 @@ repositories {
         name = 'CleanroomMC Maven'
         url = 'https://maven.cleanroommc.com'
     }
+    maven {
+        name = 'Fabric'
+        url = 'https://maven.fabricmc.net/'
+    }
 }
 
 configurations {
@@ -48,6 +52,10 @@ dependencies {
         implementation project(':core')
         // Core uses slf4j-api; Forge/Cleanroom do not ship an SLF4J binding for mod code.
         vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
+        if (propertyBool('use_mixins')) {
+            compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+            annotationProcessor "net.fabricmc:sponge-mixin:${mixin_version}"
+        }
     }
 
     if (propertyBool('use_modern_java_syntax') && !useJava25) {
@@ -114,6 +122,9 @@ def vetusJarRequiredCoreClasses = [
         'com/eminus/ingest/IngestTrigger.class',
         'com/eminus/ingest/port/ChunkColumnSink.class',
         'com/eminus/ingest/port/ColumnRef.class',
+        'com/eminus/ingest/SectionPyramid.class',
+        'com/eminus/ingest/SectionSliceConverter.class',
+        'com/eminus/ingest/PyramidDownsampler.class',
         'com/eminus/render/port/FarLayerEnvironment.class',
 ]
 

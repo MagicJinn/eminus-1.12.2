@@ -44,8 +44,12 @@ final class FarOverlays implements AutoCloseable {
         return boxes.drawsAny() || beams.drawsAny();
     }
 
-    void update(DimensionRuntime runtime, ClientLevel level, GameFrame game) {
+    void update(DimensionRuntime runtime, GameFrame game) {
         boxes.update(BoxRegistry.get(), runtime.identity().dimension());
+    }
+
+    void update(DimensionRuntime runtime, ClientLevel level, GameFrame game) {
+        update(runtime, game);
         beams.update(runtime.beams(), level, game);
     }
 

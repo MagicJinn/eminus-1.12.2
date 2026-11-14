@@ -46,6 +46,10 @@ def coreIncludes = [
         'com/eminus/cell/StateLayers.java',
         'com/eminus/cell/StateOpacity.java',
         'com/eminus/cell/VoxelEntry.java',
+        'com/eminus/ingest/SectionPyramid.java',
+        'com/eminus/ingest/SectionSliceConverter.java',
+        'com/eminus/ingest/PyramidDownsampler.java',
+        'com/eminus/platform/math/Floors.java',
 ]
 
 def coreTests = [
