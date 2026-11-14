@@ -17,6 +17,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
+import com.eminus.geom.Face;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
@@ -219,7 +220,7 @@ class CellMesherTest {
         for (Direction direction : Direction.values()) {
             int group = direction.get3DDataValue();
             int start = mesh.groupStart(group);
-            boolean side = (sides & FaceMask.bit(direction)) != 0;
+            boolean side = (sides & FaceMask.bit(Face.fromVanillaIndex(direction.get3DDataValue()))) != 0;
             assertEquals(side ? 2 : 1, mesh.groupCount(group), direction.toString());
             assertEquals(1, mesh.groupSolid(group), direction.toString());
             assertEquals(STONE_MODEL, Quad.modelId(mesh.quad(start)), direction.toString());

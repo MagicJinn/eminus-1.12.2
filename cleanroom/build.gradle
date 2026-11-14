@@ -54,16 +54,20 @@ dependencies {
     }
 }
 
+def mcmodInfoId = propertyString('mod_id')
+def mcmodInfoName = propertyString('mod_name')
+def mcmodInfoVersion = propertyString('mod_version')
+
 processResources {
-    inputs.property 'mod_id', propertyString('mod_id')
-    inputs.property 'mod_name', propertyString('mod_name')
-    inputs.property 'mod_version', propertyString('mod_version')
+    inputs.property 'mod_id', mcmodInfoId
+    inputs.property 'mod_name', mcmodInfoName
+    inputs.property 'mod_version', mcmodInfoVersion
 
     filesMatching('mcmod.info') {
         expand(
-                'mod_id': propertyString('mod_id'),
-                'mod_name': propertyString('mod_name'),
-                'mod_version': propertyString('mod_version'),
+                'mod_id': mcmodInfoId,
+                'mod_name': mcmodInfoName,
+                'mod_version': mcmodInfoVersion,
         )
     }
 }
