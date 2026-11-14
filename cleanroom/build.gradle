@@ -39,9 +39,15 @@ repositories {
     }
 }
 
+configurations {
+    vetusEmbeddedLibs
+}
+
 dependencies {
     if (useJava25) {
         implementation project(':core')
+        // Core uses slf4j-api; Forge/Cleanroom do not ship an SLF4J binding for mod code.
+        vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
     }
 
     if (propertyBool('use_modern_java_syntax') && !useJava25) {
@@ -69,6 +75,105 @@ processResources {
                 'mod_name': mcmodInfoName,
                 'mod_version': mcmodInfoVersion,
         )
+    }
+}
+
+tasks.named('jar', Jar) {
+    if (useJava25) {
+        dependsOn ':core:classes'
+        from project(':core').sourceSets.main.output
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        from {
+            def libs = configurations.vetusEmbeddedLibs.files
+            libs.addAll(project(':core').configurations.runtimeClasspath.files)
+            libs.collect { dep ->
+                dep.isDirectory() ? dep : zipTree(dep)
+            }
+        } {
+            exclude 'META-INF/MANIFEST.MF'
+            exclude 'META-INF/*.SF'
+            exclude 'META-INF/*.DSA'
+            exclude 'META-INF/*.RSA'
+            exclude 'META-INF/LICENSE*'
+            exclude 'META-INF/NOTICE*'
+            exclude 'META-INF/versions/**'
+            exclude 'module-info.class'
+        }
+    }
+}
+
+tasks.named('assemble').configure {
+    if (useJava25) {
+        dependsOn ':core:classes'
+    }
+}
+
+def vetusJarRequiredCoreClasses = [
+        'com/eminus/Eminus.class',
+        'com/eminus/geom/Face.class',
+        'com/eminus/ingest/IngestTrigger.class',
+        'com/eminus/ingest/port/ChunkColumnSink.class',
+        'com/eminus/ingest/port/ColumnRef.class',
+        'com/eminus/render/port/FarLayerEnvironment.class',
+]
+
+def vetusJarTask = tasks.named('jar', Jar)
+
+tasks.register('verifyVetusJarContents') {
+    if (!useJava25) {
+        enabled = false
+        return
+    }
+    dependsOn vetusJarTask
+    def jarArchive = vetusJarTask.flatMap { it.archiveFile }
+    def coreClassesDirProvider = project(':core').layout.buildDirectory.dir('classes/java/main')
+    inputs.file(jarArchive)
+    inputs.dir(coreClassesDirProvider)
+    doLast {
+        def jarFile = jarArchive.get().asFile
+        def jarEntries = new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+            zip.entries().collect { it.name }.toSet()
+        }
+
+        def missingRequired = vetusJarRequiredCoreClasses.findAll { !jarEntries.contains(it) }
+        if (!missingRequired.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing required core classes: ${missingRequired}")
+        }
+
+        def coreClassesDir = coreClassesDirProvider.get().asFile
+        if (!coreClassesDir.isDirectory()) {
+            throw new GradleException("Core classes directory missing: ${coreClassesDir}")
+        }
+
+        def missingCore = []
+        coreClassesDir.eachFileRecurse { file ->
+            if (!file.name.endsWith('.class')) {
+                return
+            }
+            def entry = coreClassesDir.toPath().relativize(file.toPath()).toString().replace(File.separator, '/')
+            if (!jarEntries.contains(entry)) {
+                missingCore << entry
+            }
+        }
+        if (!missingCore.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing ${missingCore.size()} core classes, first: ${missingCore.take(5)}")
+        }
+
+        def forbiddenPrefixes = ['net/minecraft/', 'net/minecraftforge/']
+        def leaked = jarEntries.findAll { name ->
+            forbiddenPrefixes.any { prefix -> name.startsWith(prefix) && name.endsWith('.class') }
+        }
+        if (!leaked.isEmpty()) {
+            throw new GradleException("Vetus jar must not bundle Minecraft/loader classes: ${leaked.take(5)}")
+        }
+    }
+}
+
+tasks.named('build').configure {
+    if (useJava25) {
+        dependsOn tasks.named('verifyVetusJarContents')
     }
 }
 
