@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.function.IntFunction;
 
 import com.eminus.cell.FaceMask;
+import com.eminus.geom.Face;
 import com.eminus.model.port.ModelQuad;
 
 import net.minecraft.core.Direction;
@@ -45,7 +46,7 @@ public final class FaceRasterizer {
     private final FaceMip[] mips = new FaceMip[BakedModel.FACE_COUNT];
     private final @Nullable FaceMip[] overlayMips = new FaceMip[BakedModel.FACE_COUNT];
     private final int[] under = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
-    private final Direction[] shades = new Direction[BakedModel.FACE_COUNT];
+    private final Face[] shades = new Face[BakedModel.FACE_COUNT];
     private final Vector3f planeNormal = new Vector3f();
     private final Vector3f planePoint = new Vector3f();
     private final Vector3f[] planeNormals = vectors();
@@ -136,7 +137,7 @@ public final class FaceRasterizer {
 
             insets[blade] = CENTER;
             mips[blade] = painter.mip();
-            shades[blade] = painter.shade(FACES[blade]);
+            shades[blade] = shadeFace(FACES[blade], painter.shade(FACES[blade]));
         }
     }
 
@@ -263,7 +264,7 @@ public final class FaceRasterizer {
         }
 
         mips[face] = painter.mip();
-        shades[face] = painter.shade(FACES[face]);
+        shades[face] = shadeFace(FACES[face], painter.shade(FACES[face]));
         if (painter.layered()) {
             overlayMips[face] = painter.overlayMip();
             painter.copyUnder(under, offset);
@@ -423,6 +424,14 @@ public final class FaceRasterizer {
         }
 
         return vectors;
+    }
+
+    @SuppressWarnings({"nullness", "NullAway", "UnusedVariable", "EnumOrdinal"})
+    private static Face shadeFace(Direction face, Direction shade) {
+        if (shade == null) {
+            return null;
+        }
+        return Face.fromVanillaIndex(shade.ordinal());
     }
 
     private static int bit(int face) {

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.model.game.GameModels;
 import com.eminus.client.model.game.SpriteMips;
 import com.eminus.model.BakedModel;
@@ -75,13 +76,13 @@ public final class MipReading {
     }
 
     private static List<long[]> run(Minecraft client, boolean seeThroughLeaves) {
-        ClientBakery baking = ClientBakery.start(client, seeThroughLeaves);
+        ClientBakery baking = ModernClientBakery.start(client, seeThroughLeaves);
         GameModels game = GameModels.of(client, seeThroughLeaves);
         List<long[]> rows = new ArrayList<>();
 
         try {
             List<BlockState> states = sample();
-            ModelBakery bakery = baking.bakery();
+            ModelBakery bakery = ((com.eminus.model.ModelBakery) baking.bakery());
             ModelReading.bake(bakery, states, Integer.MAX_VALUE);
 
             for (BlockState state : states) {

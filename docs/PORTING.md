@@ -175,14 +175,20 @@ export JAVA_HOME=/path/to/jdk-25
 |-------|----------|----------|
 | Chunk ingest | `VetusClientEvents.onChunkLoad` (client bus, `world.isRemote`) | `VetusChunkColumnSink` runs upstream `SectionSliceConverter` and `PyramidDownsampler` per section (INFO logs) |
 | Chunk unload | `onChunkUnload` | `VetusColumnIngest.onColumnUnavailable` |
-| Far render hook | `EntityRendererFarMixin` after opaque `renderBlockLayer` in pass 0 | Calls `VetusClientSession.drawFarLayer()` (session wires to upstream `FarRenderer` next) |
+| Far render hook | `EntityRendererFarMixin` after opaque `renderBlockLayer` in pass 0 | Calls `VetusClientSession.drawFarLayer()` inside `VetusGlStateGuard` |
 | Shader guard | `OptiFineShaderEnvironment` | Reflective OptiFine / Shaders Mod detection. Disables far LOD and logs a warning |
 
 ### Vetus adapter shims (this milestone)
 
 | Shim | Role |
 |------|------|
-| `FarClientBridge` + `ModernFarClientBridge` | Upstream `FarRenderer` no longer calls `Minecraft` directly on modern. Cleanroom implements `VetusFarClientBridge` next. |
+| `VetusHandles` (`GameHandles` in `cleanroom`, excluded from embedded core) | Maps main FBO, textures, and GL state to 1.12.2 `GlStateManager` for `OpenGlGpu`. |
+| `VetusGameFrames` | Reads `GameFrame` from `Minecraft` player and fog for far culling later. |
+| `VetusFarClientBridge` | Shell bridge until `FarClientBridge` and GPU far types bundle on `:core`. |
+| `VetusGlStateGuard` | Saves and restores FBO, viewport, textures, program, VAO, and buffers around the far pass. |
+| `PlaceholderModelSource` + `ClientBakery.placeholder` | Magenta placeholder atlas via upstream `FarStart.createBakery`. |
+| `BeamPass` + `BeamChunkHeld` | Loader-neutral beam culling without `ClientLevel` on the core compile path. |
+| `ModernClientBakery` | Minecraft-backed `ClientBakery.start` on fabric or neoforge only. |
 | `SectionSlice` + `SectionSliceConverter` | Loader-neutral 16³ samples. `VetusChunkSectionSlice` maps `ExtendedBlockStorage`. |
 | `VoxelStateLookup` + `VetusStateLookup` | Registry string keys to voxel state ids until full `StateTable` on 1.12. |
 | `ChunkRefusals.registerDimension` | Dimension-only refusals without `Level` on vetus. |
@@ -224,7 +230,7 @@ Implementation lives in `com.eminus.client.gpu.opengl` (modern binding layer to 
 | Indirect draw | `GL_ARB_draw_indirect`, `multi_draw_indirect` | Often core 4.x | Used for far draws. Verify caps on player GPUs. Fallback: direct draws. |
 | Blit depth | `glBlitFramebuffer` | Yes | Used when copying depth between targets. |
 
-`OpenGlGpu.create()` calls **`RenderSystem.assertOnRenderThread()`** and reads **`ARB_clip_control`** and main target depth mode. Vetus needs **`VetusRenderGuard`** (render thread check) and **`VetusHandles`** instead of `GameHandles` (lightmap texture, main FBO color/depth from `Framebuffer` / entity renderer).
+`OpenGlGpu.create()` uses **`RenderThreadGuard`** on vetus. Vetus supplies **`VetusHandles`** via cleanroom `GameHandles` (lightmap texture, main FBO color and depth from `Framebuffer`).
 
 ### State save and restore around vanilla
 

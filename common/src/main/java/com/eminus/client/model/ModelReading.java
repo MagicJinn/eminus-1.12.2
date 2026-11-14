@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.ToIntFunction;
 
 import com.eminus.client.gpu.Gpus;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.model.game.ModelSheet;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
@@ -73,8 +74,8 @@ public final class ModelReading {
 
     private static List<long[]> run(List<BlockState> states, int models, int detail) {
         Minecraft client = Minecraft.getInstance();
-        ClientBakery baking = ClientBakery.start(client);
-        ModelBakery bakery = baking.bakery();
+        ClientBakery baking = ModernClientBakery.start(client);
+        ModelBakery bakery = ((com.eminus.model.ModelBakery) baking.bakery());
         BiomeColors colors = baking.colors();
 
         try {

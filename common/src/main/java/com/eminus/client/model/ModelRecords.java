@@ -12,7 +12,7 @@ import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.model.BakedModel;
 
-import net.minecraft.core.Direction;
+import com.eminus.geom.Face;
 
 public final class ModelRecords implements AutoCloseable {
     public static final int TEXELS = 8;
@@ -51,12 +51,12 @@ public final class ModelRecords implements AutoCloseable {
         float[] bounds = model.bounds();
 
         scratch.clear();
-        scratch.putFloat(insets[Direction.DOWN.get3DDataValue()])
-                .putFloat(insets[Direction.UP.get3DDataValue()])
-                .putFloat(insets[Direction.NORTH.get3DDataValue()])
-                .putFloat(insets[Direction.SOUTH.get3DDataValue()])
-                .putFloat(insets[Direction.WEST.get3DDataValue()])
-                .putFloat(insets[Direction.EAST.get3DDataValue()])
+        scratch.putFloat(insets[Face.DOWN.vanillaIndex()])
+                .putFloat(insets[Face.UP.vanillaIndex()])
+                .putFloat(insets[Face.NORTH.vanillaIndex()])
+                .putFloat(insets[Face.SOUTH.vanillaIndex()])
+                .putFloat(insets[Face.WEST.vanillaIndex()])
+                .putFloat(insets[Face.EAST.vanillaIndex()])
                 .putFloat(bounds[BakedModel.MIN_X])
                 .putFloat(bounds[BakedModel.MIN_Y])
                 .putFloat(bounds[BakedModel.MIN_Z])

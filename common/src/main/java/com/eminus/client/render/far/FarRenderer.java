@@ -12,7 +12,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.handoff.NearBox;
 import com.eminus.handoff.NearPlane;
 import com.eminus.handoff.NearReach;
-import com.eminus.ingest.IngestService;
+import com.eminus.session.SessionCells;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
@@ -44,7 +44,6 @@ import com.eminus.render.tree.TreeExtent;
 import com.eminus.render.tree.TreeManager;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
-import com.eminus.client.session.ClientSession;
 import com.eminus.settings.FarDistance;
 import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.LodQuality;
@@ -339,7 +338,7 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        active.fillNearSections(nearSections, game, runtime.frame(), ClientSession.CLIENT_EXTRA_CHUNKS,
+        active.fillNearSections(nearSections, game, runtime.frame(), FarClientBridge.NEAR_SECTION_EXTRA_CHUNKS,
                 order.meshes());
         writeFrame(game, settings);
         terrainDrawn = true;
@@ -380,7 +379,7 @@ public final class FarRenderer implements AutoCloseable {
         GameFog gameFog = game.fog();
         int renderDistance = game.renderDistance();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
+        int keptChunks = renderDistance + FarClientBridge.NEAR_SECTION_EXTRA_CHUNKS;
         float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), extents.minBuildHeight(),
                 extents.minBuildHeight() + extents.height());
         fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
@@ -394,7 +393,7 @@ public final class FarRenderer implements AutoCloseable {
                 drawFrustum.set(farViewProjection),
                 NearBox.around(NearSections.section(Floors.floor(game.eyeX())),
                         NearSections.section(Floors.floor(game.eyeZ())),
-                        game.renderDistance() + ClientSession.CLIENT_EXTRA_CHUNKS),
+                        game.renderDistance() + FarClientBridge.NEAR_SECTION_EXTRA_CHUNKS),
                 occlusion.current(frames, game.eyeX(), game.eyeY(), game.eyeZ()), game.eyeX(), game.eyeY(),
                 game.eyeZ());
         if (commands.count() == 0) {
@@ -454,7 +453,7 @@ public final class FarRenderer implements AutoCloseable {
         gpu.assertRenderThread();
         String dimension = runtime.identity().dimension();
         ArenaState arenaState = arena.state();
-        IngestService ingest = runtime.ingest();
+        SessionCells.DimensionIngest ingest = runtime.ingest();
         int ingestQueued = ingest == null ? 0 : ingest.queued();
         int pendingBlockChanges = ingest == null ? 0 : ingest.pendingBlockChanges();
 

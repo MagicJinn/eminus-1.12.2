@@ -64,10 +64,23 @@ public final class ModelBakery implements ModelSource {
     private final BakedModel placeholder = BakedModel.solid(PLACEHOLDER_COLOR);
 
     private volatile boolean running = true;
+    private boolean placeholderOnly;
 
     private ModelBakery(StateBaker baker, PackBlocks packBlocks) {
         this.baker = baker;
         this.packBlocks = packBlocks;
+    }
+
+    /**
+     * Single magenta placeholder atlas for loaders that have no block model baker yet (Cleanroom vetus).
+     */
+    @SuppressWarnings({"nullness", "NullAway"})
+    public static ModelBakery placeholderOnly(PackBlocks packBlocks) {
+        ModelBakery bakery = new ModelBakery(null, packBlocks);
+        bakery.running = false;
+        bakery.placeholderOnly = true;
+        bakery.models.register(bakery.placeholder);
+        return bakery;
     }
 
     public static ModelBakery start(StateBaker baker) {
@@ -137,10 +150,14 @@ public final class ModelBakery implements ModelSource {
 
     @Override
     public int modelCount() {
-        return models.size();
+        return placeholderOnly ? 1 : models.size();
     }
 
     public int request(BlockState state, Runnable whenBaked) {
+        if (placeholderOnly) {
+            whenBaked.run();
+            return 0;
+        }
         int known = modelId(state);
         return known != MISSING ? known : await(new Request(state, null), () -> modelId(state), whenBaked);
     }

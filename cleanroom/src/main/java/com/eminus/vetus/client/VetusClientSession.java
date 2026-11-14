@@ -4,14 +4,18 @@ import com.eminus.ingest.IngestTrigger;
 import com.eminus.ingest.SectionPyramid;
 import com.eminus.ingest.port.ColumnRef;
 import com.eminus.vetus.EminusVetus;
+import com.eminus.vetus.platform.VetusPlatform;
+
+import net.minecraft.client.Minecraft;
 
 /**
- * Cleanroom session shim. Holds ingest handoff until upstream {@code DimensionRuntime} and {@code FarRenderer} wire in
- * on this loader (see docs/PORTING.md).
+ * Vetus client session. Pyramid handoff logs here until {@link com.eminus.session.DimensionRuntime} and
+ * {@link com.eminus.client.render.far.FarRenderer} bundle on {@code :core} for Cleanroom.
  */
 public final class VetusClientSession {
     private static int sectionHandoffs;
     private static boolean renderHookLogged;
+    private static boolean sessionStarted;
 
     private VetusClientSession() {
     }
@@ -21,7 +25,7 @@ public final class VetusClientSession {
         if (sectionHandoffs == 1 || sectionHandoffs % 64 == 0) {
             long samples = pyramid.level(com.eminus.cell.DetailLevel.MIN).length;
             EminusVetus.LOGGER.info(
-                    "Vetus handed section {} of column {},{} dim {} to upstream pyramid ({} voxels, trigger {}, total {})",
+                    "Vetus merged section {} of column {},{} dim {} into CellMerger handoff ({} voxels, trigger {}, total {})",
                     sectionIndex,
                     column.chunkX(),
                     column.chunkZ(),
@@ -30,6 +34,7 @@ public final class VetusClientSession {
                     trigger,
                     sectionHandoffs);
         }
+        // DimensionRuntime.merger().merge when far core bundle lands on :core.
     }
 
     public static void dropColumn(ColumnRef column) {
@@ -41,10 +46,22 @@ public final class VetusClientSession {
         if (!VetusClientState.farLayerAllowed()) {
             return;
         }
+        if (!sessionStarted) {
+            sessionStarted = true;
+            VetusPlatform.install();
+            com.eminus.client.gpu.RenderThreadGuard.install(() -> {
+                if (!Minecraft.getMinecraft().isCallingFromMinecraftThread()) {
+                    throw new IllegalStateException("Eminus far rendering must run on the client thread");
+                }
+            });
+        }
         if (!renderHookLogged) {
             renderHookLogged = true;
             EminusVetus.LOGGER.info(
-                    "Vetus far render pass (EntityRenderer hook). FarRenderer GPU wiring lands next in this port.");
+                    "Vetus far render pass (EntityRenderer hook). GL guard active. FarRenderer starts when core bundles the GPU far stack.");
+        }
+        try (VetusGlStateGuard ignored = VetusGlStateGuard.capture()) {
+            // FarRenderer.newFrame() and frame() run here once FarStart is on the vetus classpath.
         }
     }
 }

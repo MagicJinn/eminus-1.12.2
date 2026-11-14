@@ -5,9 +5,13 @@ import java.util.List;
 import com.eminus.cell.CellFrame;
 import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
+import com.eminus.client.frame.ModernDrawnSections;
 import com.eminus.client.handoff.NearSectionTable;
+import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
+import com.eminus.model.PackBlocks;
 import com.eminus.session.DimensionRuntime;
 
 import net.minecraft.client.Minecraft;
@@ -56,7 +60,7 @@ public final class ModernFarClientBridge implements FarClientBridge {
         if (level == null) {
             return;
         }
-        table.fill(client.levelRenderer, game.sectionFadeMillis(), meshes, frame,
+        table.fill(new ModernDrawnSections(client.levelRenderer), game.sectionFadeMillis(), meshes, frame,
                 NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
                 NearSections.section(Mth.floor(game.eyeZ())), game.renderDistance(),
                 game.renderDistance() + extraChunks, level.getMinSectionY(), level.getSectionsCount());
@@ -64,16 +68,21 @@ public final class ModernFarClientBridge implements FarClientBridge {
 
     @Override
     public void updateOverlays(FarOverlays overlays, DimensionRuntime runtime, GameFrame game) {
+        overlays.update(runtime, game);
         ClientLevel level = client.level;
-        if (level == null) {
-            overlays.update(runtime, game);
-            return;
+        if (level != null) {
+            overlays.beams().update(runtime.beams(), game, (sectionX, sectionZ) -> level.getChunkSource()
+                    .hasChunk(sectionX, sectionZ));
         }
-        overlays.update(runtime, level, game);
     }
 
     @Override
     public int biomeBlendRadius() {
         return client.options.biomeBlendRadius().get();
+    }
+
+    @Override
+    public ClientBakery createBakery(PackBlocks packBlocks) {
+        return ModernClientBakery.start(client, packBlocks);
     }
 }

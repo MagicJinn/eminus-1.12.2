@@ -35,6 +35,7 @@ def coreIncludes = [
         'com/eminus/beam/BeamSection.java',
         'com/eminus/beam/BeamSnapshot.java',
         'com/eminus/beam/BeamStore.java',
+        'com/eminus/beam/BeaconBeamMetrics.java',
         'com/eminus/mesh/Quad.java',
         'com/eminus/cell/CellKey.java',
         'com/eminus/cell/FaceMask.java',
@@ -50,6 +51,17 @@ def coreIncludes = [
         'com/eminus/ingest/SectionSliceConverter.java',
         'com/eminus/ingest/PyramidDownsampler.java',
         'com/eminus/platform/math/Floors.java',
+        'com/eminus/platform/math/PackedBlockPos.java',
+        'com/eminus/ingest/ChunkRefusals.java',
+        'com/eminus/cell/CellStates.java',
+        'com/eminus/cell/DictionaryStateTable.java',
+        'com/eminus/client/gpu/RenderThreadGuard.java',
+        'com/eminus/client/handoff/DrawnSections.java',
+        'com/eminus/handoff/SectionNodes.java',
+        'com/eminus/client/frame/GameFrame.java',
+        'com/eminus/client/frame/GameFog.java',
+        'com/eminus/client/frame/FaceShade.java',
+        'com/eminus/client/frame/TerrainFilter.java',
 ]
 
 def coreTests = [

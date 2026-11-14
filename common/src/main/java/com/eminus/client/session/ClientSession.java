@@ -27,6 +27,7 @@ import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.PackBlocks;
 import com.eminus.session.DimensionRuntime;
+import com.eminus.session.SessionCells;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
 import com.eminus.session.WorldIdentity;
@@ -354,7 +355,11 @@ public final class ClientSession {
             return null;
         }
 
-        return SettingsService.get().settings().ingestion() ? runtime.ingest() : null;
+        if (!SettingsService.get().settings().ingestion()) {
+            return null;
+        }
+        SessionCells.DimensionIngest active = runtime.ingest();
+        return active instanceof IngestService service ? service : null;
     }
 
     @SuppressWarnings("ReferenceEquality")

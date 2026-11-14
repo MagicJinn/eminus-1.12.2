@@ -1,5 +1,8 @@
 package com.eminus.client.mesh;
 
+import com.eminus.cell.CellStates;
+import com.eminus.cell.StateTable;
+import com.eminus.mesh.PlaceholderMeshModels;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.render.far.FarClientBridge;
 import com.eminus.client.render.far.ModernFarClientBridge;
@@ -42,7 +45,11 @@ public final class MeshWiring {
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {
-        return new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery());
+        CellStates states = runtime.states();
+        if (states instanceof StateTable table && baking.bakery() instanceof com.eminus.model.ModelBakery bakery) {
+            return new BakeryModels(new ModelIndex(table, bakery), bakery);
+        }
+        return new PlaceholderMeshModels(baking.bakery());
     }
 
     public static MeshOcclusion occlusion(CornerOcclusion occlusion) {

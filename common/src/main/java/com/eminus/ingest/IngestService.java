@@ -33,7 +33,7 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 
 import org.jspecify.annotations.Nullable;
 
-public final class IngestService {
+public final class IngestService implements com.eminus.session.SessionCells.DimensionIngest {
     private static final int NEIGHBOR_REACH = 1;
     private static final int NEIGHBOR_SIDE = 2 * NEIGHBOR_REACH + 1;
 
@@ -61,10 +61,12 @@ public final class IngestService {
         this.listener = listener;
     }
 
+    @Override
     public int queued() {
         return service.pending();
     }
 
+    @Override
     public int pendingBlockChanges() {
         return debounce.size();
     }
@@ -152,7 +154,7 @@ public final class IngestService {
 
     private boolean ready(LevelChunk chunk, LevelLightEngine light) {
         ChunkPos chunkPos = chunk.getPos();
-        if (ChunkRefusals.refuses(chunk.getLevel(), chunkPos.x(), chunkPos.z())) {
+        if (ChunkLevelRefusals.refuses(chunk.getLevel(), chunkPos.x(), chunkPos.z())) {
             return false;
         }
 
@@ -269,7 +271,7 @@ public final class IngestService {
         int index = chunk.getSectionIndexFromSectionY(SectionPos.y(sectionNode));
         LevelLightEngine light = chunk.getLevel().getLightEngine();
         if (index < 0 || index >= chunk.getSections().length || !lightOn(light, sectionX, sectionZ)
-                || ChunkRefusals.refuses(chunk.getLevel(), sectionX, sectionZ)) {
+                || ChunkLevelRefusals.refuses(chunk.getLevel(), sectionX, sectionZ)) {
             return;
         }
 

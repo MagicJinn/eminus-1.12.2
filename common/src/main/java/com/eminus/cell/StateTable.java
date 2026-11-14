@@ -21,7 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
 
-public final class StateTable implements StateOpacity, StateLayers {
+public final class StateTable implements CellStates {
     public static final String DICTIONARY_NAME = "state";
     public static final int FULL_OPACITY = 15;
     public static final int CLEAR_OPACITY = 0;
@@ -134,6 +134,7 @@ public final class StateTable implements StateOpacity, StateLayers {
         return (block instanceof SnowLayerBlock || block instanceof CarpetBlock) && opacity(stateId) == CLEAR_OPACITY;
     }
 
+    @Override
     public StateOpacity seeThroughLeaves() {
         return seeThroughLeaves;
     }

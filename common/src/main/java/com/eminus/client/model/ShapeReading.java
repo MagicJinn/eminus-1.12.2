@@ -13,6 +13,7 @@ import java.util.StringJoiner;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.model.game.GameModels;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelBakery;
@@ -67,14 +68,14 @@ public final class ShapeReading {
 
     public static CompletableFuture<List<long[]>> start() {
         Minecraft client = Minecraft.getInstance();
-        ClientBakery baking = ClientBakery.start(client);
+        ClientBakery baking = ModernClientBakery.start(client);
         BlockModels models = GameModels.of(client, baking.seeThroughLeaves()).blocks();
         Path directory = client.gameDirectory.toPath();
 
         CompletableFuture<List<long[]>> result = new CompletableFuture<>();
         Thread thread = new Thread(() -> {
             try {
-                result.complete(run(baking.bakery(), models, directory));
+                result.complete(run(((com.eminus.model.ModelBakery) baking.bakery()), models, directory));
             } catch (RuntimeException failure) {
                 result.completeExceptionally(failure);
             } finally {

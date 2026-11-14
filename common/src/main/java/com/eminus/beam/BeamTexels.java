@@ -3,7 +3,7 @@ package com.eminus.beam;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import net.minecraft.core.BlockPos;
+import com.eminus.platform.math.PackedBlockPos;
 
 public final class BeamTexels {
     public static final int TEXELS = 2;
@@ -27,9 +27,9 @@ public final class BeamTexels {
 
     public static void write(List<Beam> beams, int lastSectionHeight, ByteBuffer target) {
         for (Beam beam : beams) {
-            int x = BlockPos.getX(beam.pos());
-            int z = BlockPos.getZ(beam.pos());
-            int bottom = BlockPos.getY(beam.pos());
+            int x = PackedBlockPos.getX(beam.pos());
+            int z = PackedBlockPos.getZ(beam.pos());
+            int bottom = PackedBlockPos.getY(beam.pos());
             List<BeamSection> sections = beam.sections();
             for (int index = 0; index < sections.size(); index++) {
                 BeamSection section = sections.get(index);

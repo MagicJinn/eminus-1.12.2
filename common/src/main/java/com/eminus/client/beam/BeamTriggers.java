@@ -5,7 +5,7 @@ import java.util.List;
 import com.eminus.beam.BeamSection;
 import com.eminus.beam.BeamSet;
 import com.eminus.beam.BeamWatch;
-import com.eminus.ingest.ChunkRefusals;
+import com.eminus.ingest.ChunkLevelRefusals;
 
 import it.unimi.dsi.fastutil.longs.LongList;
 
@@ -22,7 +22,7 @@ public final class BeamTriggers {
     public static void ticked(BeamSet beams, Level level, BlockPos pos, BeaconBlockEntity beacon) {
         BeaconScan scan = (BeaconScan) beacon;
         BeamWatch watch = scan.eminus$beamWatch();
-        if (ChunkRefusals.refuses(level, SectionPos.blockToSectionCoord(pos.getX()),
+        if (ChunkLevelRefusals.refuses(level, SectionPos.blockToSectionCoord(pos.getX()),
                 SectionPos.blockToSectionCoord(pos.getZ())) || !served(level, pos)) {
             watch.unsettle();
             return;

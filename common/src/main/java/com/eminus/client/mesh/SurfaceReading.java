@@ -8,6 +8,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModernClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.FluidCorners;
@@ -41,10 +42,10 @@ public final class SurfaceReading {
         CellFrame frame = runtime.frame();
         long[] keys = CellMeshing.keys(frame, DetailLevel.MIN, DetailLevel.MAX, minX, minY, minZ, minX + side - 1, maxY,
                 minZ + side - 1);
-        ClientBakery baking = ClientBakery.start(Minecraft.getInstance());
+        ClientBakery baking = ModernClientBakery.start(Minecraft.getInstance());
 
         return CellMeshing.mesh(runtime, instance, baking, keys, TIMEOUT_SECONDS)
-                .thenApply(meshes -> tops(frame, baking.bakery(), meshes, minX, minZ, side))
+                .thenApply(meshes -> tops(frame, ((com.eminus.model.ModelBakery) baking.bakery()), meshes, minX, minZ, side))
                 .whenComplete((tops, failure) -> baking.stop());
     }
 

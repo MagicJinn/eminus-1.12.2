@@ -11,8 +11,8 @@ import java.util.Set;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.client.frame.GameFrames;
 import com.eminus.compat.sodium.SodiumDrawnSections;
+import com.eminus.handoff.SectionNodes;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
@@ -23,10 +23,6 @@ import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 
 import org.jspecify.annotations.Nullable;
 
@@ -39,7 +35,6 @@ public final class NearSectionTable implements AutoCloseable {
 
     private final Gpu gpu;
     private final NearSections sections = new NearSections();
-    private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private final NearSections.SectionQuery query = this::owned;
     private final boolean sodium = SodiumMixinPlugin.sodiumPresent();
     private final LongOpenHashSet drawn = new LongOpenHashSet();
@@ -48,7 +43,7 @@ public final class NearSectionTable implements AutoCloseable {
     private TexelView view;
     private ByteBuffer scratch;
     private IntBuffer texels;
-    private @Nullable LevelRenderer levelRenderer;
+    private @Nullable DrawnSections drawnSections;
     private long sectionFadeMillis;
     private int cameraSectionX;
     private int cameraSectionY;
@@ -73,23 +68,23 @@ public final class NearSectionTable implements AutoCloseable {
         return view;
     }
 
-    public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> meshes, CellFrame frame,
+    public void fill(@Nullable DrawnSections sections, long sectionFadeMillis, List<MeshSummary> meshes, CellFrame frame,
             int cameraSectionX, int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY,
             int sectionCount) {
         gpu.assertRenderThread();
-        levelRenderer = renderer;
+        drawnSections = sections;
         this.sectionFadeMillis = sectionFadeMillis;
         this.cameraSectionX = cameraSectionX;
         this.cameraSectionY = cameraSectionY;
         this.cameraSectionZ = cameraSectionZ;
         this.viewDistance = viewDistance;
-        if (!sodium) {
-            GameFrames.drawnSections(renderer, drawn);
+        if (sections != null && !sodium) {
+            sections.collectDrawn(drawn);
         }
 
-        sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
+        this.sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
         queryMeshes(meshes, frame);
-        levelRenderer = null;
+        drawnSections = null;
         upload();
     }
 
@@ -110,18 +105,20 @@ public final class NearSectionTable implements AutoCloseable {
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
-        pos.set(sectionX * NearSections.SECTION_BLOCKS, sectionY * NearSections.SECTION_BLOCKS,
-                sectionZ * NearSections.SECTION_BLOCKS);
-        LevelRenderer renderer = Objects.requireNonNull(levelRenderer, "sections are queried inside fill");
+        if (drawnSections == null) {
+            return true;
+        }
+        DrawnSections sections = drawnSections;
         if (sodium) {
-            return GameFrames.sectionDrawn(renderer, pos, sectionFadeMillis)
+            return sections.sectionDrawn(sectionX, sectionY, sectionZ, sectionFadeMillis)
                     && SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
         }
 
-        // The graph never lists an all-air section, yet the game still answers for its blocks.
-        return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                || (GameFrames.sectionEmpty(renderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
-                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ));
+        long sectionNode = SectionNodes.pack(sectionX, sectionY, sectionZ);
+        return drawn.contains(sectionNode)
+                || (sections.sectionEmpty(sectionX, sectionY, sectionZ, sectionFadeMillis)
+                        && NearSections.inVanillaViewDistance(cameraSectionX, cameraSectionY, cameraSectionZ,
+                                viewDistance, sectionX, sectionY, sectionZ));
     }
 
     private void upload() {

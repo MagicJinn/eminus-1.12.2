@@ -50,8 +50,11 @@ configurations {
 dependencies {
     if (useJava25) {
         implementation project(':core')
+        implementation 'org.joml:joml:1.10.8'
         // Core uses slf4j-api; Forge/Cleanroom do not ship an SLF4J binding for mod code.
         vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
+        implementation 'org.xerial:sqlite-jdbc:3.47.2.0'
+        implementation 'io.airlift:aircompressor:0.27'
         if (propertyBool('use_mixins')) {
             compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
             annotationProcessor "net.fabricmc:sponge-mixin:${mixin_version}"
@@ -90,6 +93,7 @@ tasks.named('jar', Jar) {
     if (useJava25) {
         dependsOn ':core:classes'
         from project(':core').sourceSets.main.output
+        exclude 'com/eminus/client/gpu/opengl/GameHandles.class'
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         from {
             def libs = configurations.vetusEmbeddedLibs.files
@@ -126,6 +130,10 @@ def vetusJarRequiredCoreClasses = [
         'com/eminus/ingest/SectionSliceConverter.class',
         'com/eminus/ingest/PyramidDownsampler.class',
         'com/eminus/render/port/FarLayerEnvironment.class',
+        'com/eminus/client/gpu/RenderThreadGuard.class',
+        'com/eminus/client/frame/GameFrame.class',
+        'com/eminus/cell/CellStates.class',
+        'com/eminus/cell/DictionaryStateTable.class',
 ]
 
 def vetusJarTask = tasks.named('jar', Jar)
