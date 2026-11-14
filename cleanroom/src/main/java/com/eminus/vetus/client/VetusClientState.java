@@ -2,6 +2,8 @@ package com.eminus.vetus.client;
 
 import com.eminus.ingest.port.ChunkColumnSink;
 import com.eminus.render.port.FarLayerEnvironment;
+import com.eminus.vetus.EminusVetus;
+import com.eminus.vetus.ingest.VetusChunkColumnSink;
 
 public final class VetusClientState {
     private static final FarLayerEnvironment SHADERS = new OptiFineShaderEnvironment();

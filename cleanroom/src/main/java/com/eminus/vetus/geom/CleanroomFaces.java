@@ -10,7 +10,7 @@ public final class CleanroomFaces {
     }
 
     public static EnumFacing toCleanroom(Face face) {
-        return EnumFacing.getFacing(face.vanillaIndex());
+        return EnumFacing.byIndex(face.vanillaIndex());
     }
 
     private CleanroomFaces() {
