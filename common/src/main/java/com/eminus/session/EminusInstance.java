@@ -70,6 +70,10 @@ public final class EminusInstance {
         return storeBase;
     }
 
+    public WorkService<SectionPyramid> ingest() {
+        return ingest;
+    }
+
     public WorkService<MeshScratch> build() {
         return build;
     }

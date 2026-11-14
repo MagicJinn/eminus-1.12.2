@@ -65,8 +65,13 @@ dependencies {
         implementation 'org.joml:joml:1.10.8'
         // Core uses slf4j-api; Forge/Cleanroom do not ship an SLF4J binding for mod code.
         vetusEmbeddedLibs 'org.slf4j:slf4j-simple:2.0.16'
-        implementation 'org.xerial:sqlite-jdbc:3.47.2.0'
-        implementation 'io.airlift:aircompressor:0.27'
+        // Cell store stack must be fat-jar'd; 1.12.2 has no jar-in-jar loader for these.
+        def sqliteJdbcVersion = rootProject.findProperty('sqlite_jdbc_version') ?: '3.53.4.0'
+        def aircompressorVersion = rootProject.findProperty('aircompressor_version') ?: '2.0.3'
+        implementation "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
+        implementation "io.airlift:aircompressor:${aircompressorVersion}"
+        vetusEmbeddedLibs "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
+        vetusEmbeddedLibs "io.airlift:aircompressor:${aircompressorVersion}"
         implementation platform('org.lwjgl:lwjgl-bom:3.3.3')
         implementation 'org.lwjgl:lwjgl'
         implementation 'org.lwjgl:lwjgl-opengl'
@@ -113,8 +118,11 @@ tasks.named('jar', Jar) {
     if (useJava25) {
         dependsOn ':core:classes'
         from sourceSets.main.output
-        from project(':core').sourceSets.main.output
-        exclude 'com/eminus/client/gpu/opengl/GameHandles.class'
+        // Keep cleanroom GameHandles; drop only the modern/core Pearl variant.
+        from(project(':core').sourceSets.main.output) {
+            exclude 'com/eminus/client/gpu/opengl/GameHandles.class'
+            exclude 'com/eminus/client/gpu/opengl/GameHandles$Handle.class'
+        }
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         from {
             def libs = configurations.vetusEmbeddedLibs.files
@@ -161,6 +169,12 @@ def vetusJarRequiredFarClasses = [
         'com/eminus/client/render/far/FarRenderer.class',
         'com/eminus/client/render/far/FarStart.class',
         'com/eminus/client/gpu/opengl/OpenGlGpu.class',
+        'com/eminus/client/gpu/opengl/GameHandles.class',
+]
+
+def vetusJarRequiredEmbeddedLibs = [
+        'org/sqlite/SQLiteConfig.class',
+        'io/airlift/compress/zstd/ZstdCompressor.class',
 ]
 
 def vetusJarAllowedMinecraftShims = [
@@ -172,16 +186,19 @@ def vetusJarAllowedMinecraftShims = [
 ]
 
 def vetusJarTask = tasks.named('jar', Jar)
+def vetusReobfJarTask = tasks.named('reobfJar')
 
 tasks.register('verifyVetusJarContents') {
     if (!useJava25) {
         enabled = false
         return
     }
-    dependsOn vetusJarTask
+    dependsOn vetusJarTask, vetusReobfJarTask
     def jarArchive = vetusJarTask.flatMap { it.archiveFile }
+    def reobfJarFileProvider = layout.buildDirectory.file("libs/${base.archivesName.get()}-${project.version}.jar")
     def coreClassesDirProvider = project(':core').layout.buildDirectory.dir('classes/java/main')
     inputs.file(jarArchive)
+    inputs.file(reobfJarFileProvider)
     inputs.dir(coreClassesDirProvider)
     doLast {
         def jarFile = jarArchive.get().asFile
@@ -199,6 +216,12 @@ tasks.register('verifyVetusJarContents') {
         if (!missingFar.isEmpty()) {
             throw new GradleException(
                     "Vetus jar ${jarFile.name} is missing required far stack classes: ${missingFar}")
+        }
+
+        def missingLibs = vetusJarRequiredEmbeddedLibs.findAll { !jarEntries.contains(it) }
+        if (!missingLibs.isEmpty()) {
+            throw new GradleException(
+                    "Vetus jar ${jarFile.name} is missing embedded store libs: ${missingLibs}")
         }
 
         def missingShims = vetusJarAllowedMinecraftShims.findAll { !jarEntries.contains(it) }
@@ -237,6 +260,29 @@ tasks.register('verifyVetusJarContents') {
         }
         if (!leaked.isEmpty()) {
             throw new GradleException("Vetus jar must not bundle Minecraft/loader classes: ${leaked.take(5)}")
+        }
+
+        // Prism/Cleanroom need the SRG reobf jar, not the MCP *-dev.jar classifier.
+        def reobfFile = reobfJarFileProvider.get().asFile
+        if (!reobfFile.isFile()) {
+            throw new GradleException("Missing reobfuscated jar: ${reobfFile}")
+        }
+        def eventsEntry = 'com/eminus/vetus/client/VetusClientEvents.class'
+        def eventsBytes = new java.util.zip.ZipFile(reobfFile).withCloseable { zip ->
+            def entry = zip.getEntry(eventsEntry)
+            if (entry == null) {
+                throw new GradleException("Reobf jar ${reobfFile.name} missing ${eventsEntry}")
+            }
+            zip.getInputStream(entry).bytes
+        }
+        def eventsText = new String(eventsBytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+        if (!eventsText.contains('field_72995_K')) {
+            throw new GradleException(
+                    "Reobf jar ${reobfFile.name} still has MCP World.isRemote; install ${reobfFile.name}, not the *-dev classifier jar")
+        }
+        if (eventsText.contains('isRemote')) {
+            throw new GradleException(
+                    "Reobf jar ${reobfFile.name} still references MCP name isRemote")
         }
     }
 }

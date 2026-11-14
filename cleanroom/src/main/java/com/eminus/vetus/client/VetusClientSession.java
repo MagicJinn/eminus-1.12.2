@@ -47,18 +47,24 @@ public final class VetusClientSession {
       ColumnRef column, int sectionIndex, SectionPyramid pyramid, IngestTrigger trigger) {
     ensureSession();
     DimensionRuntime active = runtimeFor(column.dimensionId());
-    if (active == null) {
+    if (active == null || instance == null) {
       return;
     }
-    active.merger().merge(pyramid, column.chunkX(), sectionIndex, column.chunkZ());
+    // CellMerger/CellCache require an eminus worker thread, same as modern
+    // IngestService.
+    int chunkX = column.chunkX();
+    int chunkZ = column.chunkZ();
+    instance
+        .ingest()
+        .enqueue(scratch -> active.merger().merge(pyramid, chunkX, sectionIndex, chunkZ));
     sectionHandoffs++;
     if (sectionHandoffs == 1 || sectionHandoffs % 64 == 0) {
       long samples = pyramid.level(com.eminus.cell.DetailLevel.MIN).length;
       EminusVetus.LOGGER.debug(
-          "Vetus merged section {} of column {},{} dim {} ({} voxels, trigger {}, total {})",
+          "Vetus queued section {} of column {},{} dim {} ({} voxels, trigger {}, total {})",
           sectionIndex,
-          column.chunkX(),
-          column.chunkZ(),
+          chunkX,
+          chunkZ,
           column.dimensionId(),
           samples,
           trigger,
